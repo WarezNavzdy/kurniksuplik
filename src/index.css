@@ -1,0 +1,19 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { font-family: 'DM Sans', sans-serif; color: #0f172a; background: #020617; }
+h1, h2, h3 { font-family: 'Space Grotesk', sans-serif; }
+button { cursor: pointer; }
+
+.schedule-scroll {
+	scrollbar-color: rgba(148, 163, 184, 0.75) transparent;
+	scrollbar-width: thin;
+	-webkit-overflow-scrolling: touch;
+}
+
+.schedule-scroll::-webkit-scrollbar { height: 7px; }
+.schedule-scroll::-webkit-scrollbar-track { background: transparent; }
+.schedule-scroll::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.65); border: 2px solid transparent; border-radius: 999px; background-clip: padding-box; }
+.schedule-scroll::-webkit-scrollbar-thumb:hover { background: rgba(251, 191, 36, 0.9); border-width: 1px; }
