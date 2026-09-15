@@ -24,16 +24,77 @@ function parseBuildingLinks(rawJson: string): Record<string, string> {
   }
 }
 
+function parseDayDate(dateText: string): Date | null {
+  const match = dateText.match(/^(\d{1,2})\.(\d{1,2})\.?$/)
+  if (!match) return null
+
+  const day = Number(match[1])
+  const month = Number(match[2])
+  if (!day || !month) return null
+
+  const today = new Date()
+  return new Date(today.getFullYear(), month - 1, day)
+}
+
+function formatDayDate(value: Date) {
+  return `${value.getDate()}.${value.getMonth() + 1}.`
+}
+
 function normalizeDays(days: ScheduleWeek['days']): ScheduleWeek['days'] {
   const daysByName = new Map(days.map((day) => {
     const dayIndex = WEEKDAY_ALIASES.indexOf(day.dayName.toLocaleLowerCase('cs-CZ'))
-    return [dayIndex >= 0 ? WEEKDAYS[dayIndex].toLocaleLowerCase('cs-CZ') : day.dayName.toLocaleLowerCase('cs-CZ'), day]
+    const canonicalDayName = dayIndex >= 0 ? WEEKDAYS[dayIndex] : day.dayName
+    return [canonicalDayName, day]
   }))
 
-  return WEEKDAYS.map((dayName) => daysByName.get(dayName.toLocaleLowerCase('cs-CZ')) || {
-    date: '',
-    dayName,
-    subjects: [],
+  const knownDates = new Map<string, Date>()
+  days.forEach((day) => {
+    const parsedDate = parseDayDate(day.date)
+    if (!parsedDate) return
+
+    const dayIndex = WEEKDAY_ALIASES.indexOf(day.dayName.toLocaleLowerCase('cs-CZ'))
+    const canonicalDayName = dayIndex >= 0 ? WEEKDAYS[dayIndex] : day.dayName
+    knownDates.set(canonicalDayName, parsedDate)
+  })
+
+  return WEEKDAYS.map((dayName) => {
+    const existingDay = daysByName.get(dayName)
+    if (existingDay) return existingDay
+
+    const targetIndex = WEEKDAYS.indexOf(dayName)
+    let bestKnownDayName: string | null = null
+    let bestKnownDate: Date | null = null
+    let bestOffset = Number.POSITIVE_INFINITY
+
+    for (const [knownDayName, knownDate] of knownDates.entries()) {
+      const knownIndex = WEEKDAYS.indexOf(knownDayName)
+      if (knownIndex < 0) continue
+
+      const offset = Math.abs(targetIndex - knownIndex)
+      if (offset >= bestOffset) continue
+
+      bestKnownDayName = knownDayName
+      bestKnownDate = knownDate
+      bestOffset = offset
+    }
+
+    if (!bestKnownDayName || !bestKnownDate) {
+      return {
+        date: '',
+        dayName,
+        subjects: [],
+      }
+    }
+
+    const knownIndex = WEEKDAYS.indexOf(bestKnownDayName)
+    const inferredDate = new Date(bestKnownDate)
+    inferredDate.setDate(inferredDate.getDate() + (targetIndex - knownIndex))
+
+    return {
+      date: formatDayDate(inferredDate),
+      dayName,
+      subjects: [],
+    }
   })
 }
 
