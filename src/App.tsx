@@ -18,7 +18,7 @@ function formatUpdatedAt(value: string | null) {
 }
 
 const CIRCLE_COOKIE = 'rozvrh-kruh'
-const CIRCLES = Array.from({ length: 20 }, (_, index) => index + 1001)
+const CIRCLES = Array.from({ length: 24 }, (_, index) => index + 1001)
 
 function getSavedCircle() {
   const savedCircle = document.cookie
