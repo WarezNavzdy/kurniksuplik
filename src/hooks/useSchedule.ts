@@ -81,7 +81,7 @@ function normalizeSchedule(payload: SchedulePayload, buildingLinks: Record<strin
   }))
 }
 
-export function useSchedule() {
+export function useSchedule(circle: number) {
   const [weeks, setWeeks] = useState<ScheduleWeek[]>([])
   const [updatedAt, setUpdatedAt] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -95,7 +95,7 @@ export function useSchedule() {
         setLoading(true)
         setError(null)
         const [response, buildingResponse] = await Promise.all([
-          fetch(API_URL, { signal: controller.signal }),
+          fetch(`${API_URL}?kruh=${circle}`, { signal: controller.signal }),
           fetch(BUILDING_MAP_URL, { signal: controller.signal }),
         ])
         if (!response.ok) throw new Error(`Server odpověděl kódem ${response.status}.`)
@@ -117,7 +117,7 @@ export function useSchedule() {
 
     void loadSchedule()
     return () => controller.abort()
-  }, [])
+  }, [circle])
 
   return { weeks, updatedAt, loading, error }
 }

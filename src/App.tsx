@@ -1,4 +1,4 @@
-import { AlertCircle, GraduationCap, LoaderCircle, RefreshCw } from 'lucide-react'
+import { AlertCircle, GraduationCap, LoaderCircle, RefreshCw, UsersRound } from 'lucide-react'
 import { useState } from 'react'
 import { DayColumn } from './components/DayColumn'
 import { WeekTabs } from './components/WeekTabs'
@@ -16,16 +16,45 @@ function formatUpdatedAt(value: string | null) {
   }).format(date)
 }
 
+const CIRCLE_COOKIE = 'rozvrh-kruh'
+const CIRCLES = Array.from({ length: 20 }, (_, index) => index + 1001)
+
+function getSavedCircle() {
+  const savedCircle = document.cookie
+    .split('; ')
+    .find((cookie) => cookie.startsWith(`${CIRCLE_COOKIE}=`))
+    ?.split('=')[1]
+  const parsedCircle = Number(savedCircle)
+
+  return CIRCLES.includes(parsedCircle) ? parsedCircle : 1003
+}
+
 function App() {
-  const { weeks, updatedAt, loading, error } = useSchedule()
+  const [circle, setCircle] = useState(getSavedCircle)
+  const { weeks, updatedAt, loading, error } = useSchedule(circle)
   const [activeWeekId, setActiveWeekId] = useState('')
   const activeWeek = weeks.find((week) => week.id === activeWeekId) || weeks[0]
+
+  function handleCircleChange(nextCircle: number) {
+    setCircle(nextCircle)
+    document.cookie = `${CIRCLE_COOKIE}=${nextCircle}; max-age=31536000; path=/; SameSite=Lax`
+    setActiveWeekId('')
+  }
 
   return <main className="min-h-screen bg-slate-950 text-slate-100">
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <header className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div><p className="mb-3 flex items-center gap-2 text-sm font-bold uppercase tracking-[0.2em] text-amber-400"><GraduationCap size={18} />Školní přehled</p><h1 className="text-4xl font-black tracking-tight sm:text-5xl">Můj rozvrh<span className="text-amber-400">.</span></h1><p className="mt-3 max-w-lg text-slate-400">Všechny hodiny přehledně na jednom místě.</p></div>
-        <div className="rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-slate-400"><span className="mr-2 inline-block h-2 w-2 rounded-full bg-emerald-400" />Naposledy aktualizováno: {loading ? 'načítám…' : formatUpdatedAt(updatedAt)}</div>
+        <div className="flex flex-col gap-3 sm:items-end">
+          <label className="flex items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm font-bold text-slate-200">
+            <UsersRound size={18} className="text-amber-400" />
+            <span>Kruh</span>
+            <select value={circle} onChange={(event) => handleCircleChange(Number(event.target.value))} className="rounded-lg border border-slate-700 bg-slate-800 px-2 py-1 text-slate-100 outline-none focus:border-amber-400">
+              {CIRCLES.map((circleNumber) => <option key={circleNumber} value={circleNumber}>{circleNumber}</option>)}
+            </select>
+          </label>
+          <div className="rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-slate-400"><span className="mr-2 inline-block h-2 w-2 rounded-full bg-emerald-400" />Naposledy aktualizováno: {loading ? 'načítám…' : formatUpdatedAt(updatedAt)}</div>
+        </div>
       </header>
       {loading && <div className="flex min-h-64 items-center justify-center rounded-3xl bg-white text-slate-500"><LoaderCircle className="mr-3 animate-spin" />Načítám rozvrh…</div>}
       {error && <div role="alert" className="flex items-center gap-3 rounded-2xl border border-red-300 bg-red-50 p-5 text-red-800"><AlertCircle />{error}</div>}
