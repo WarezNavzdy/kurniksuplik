@@ -42,12 +42,22 @@ function normalizeSchedule(payload: SchedulePayload, buildingLinks: Record<strin
   if ('weeks' in payload) return payload.weeks.map((week) => ({ ...week, days: normalizeDays(week.days) }))
 
   const groupedDays = new Map<string, ApiScheduleResponse['days']>()
-  let currentWeekKey = '1'
+  let previousMonth = 0
+  let year = new Date().getFullYear()
+  let currentWeekKey: string | null = null
 
   payload.days.forEach((day) => {
-    // API labels only Mondays; following days belong to that same week.
+    const [, dayText, monthText] = day.date.match(/^(\d{1,2})\.(\d{1,2})\.?$/) || []
+    const month = Number(monthText)
+    if (month && month < previousMonth) year += 1
+    previousMonth = month || previousMonth
+
+    const parsedDate = month ? new Date(year, month - 1, Number(dayText)) : null
+    const monday = parsedDate ? new Date(parsedDate) : null
+    if (monday) monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7))
     if (day.week !== null && day.week !== undefined) currentWeekKey = String(day.week)
-    const weekKey = currentWeekKey
+    if (!currentWeekKey && monday) currentWeekKey = `${monday.getFullYear()}-${monday.getMonth() + 1}-${monday.getDate()}`
+    const weekKey = currentWeekKey || 'unknown'
     const days = groupedDays.get(weekKey) || []
     days.push(day)
     groupedDays.set(weekKey, days)
@@ -55,8 +65,8 @@ function normalizeSchedule(payload: SchedulePayload, buildingLinks: Record<strin
 
   return [...groupedDays.entries()].map(([weekKey, days], index) => ({
     id: `week-${weekKey}`,
-    label: `Týden ${weekKey}`,
-    weekNumber: Number.isNaN(Number(weekKey)) ? index + 1 : Number(weekKey),
+    label: `Týden ${index + 1}`,
+    weekNumber: index + 1,
     days: normalizeDays(days.map((day) => ({
       date: day.date,
       dayName: day.day,

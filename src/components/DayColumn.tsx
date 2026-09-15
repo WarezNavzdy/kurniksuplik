@@ -11,11 +11,11 @@ function toMinutes(time: string) {
   return hours * 60 + minutes
 }
 
-export function DayColumn({ day }: { day: ScheduleDay }) {
+export function DayColumn({ day, isToday = false }: { day: ScheduleDay; isToday?: boolean }) {
   return (
-    <section className="min-w-0 flex-[0_0_calc(100vw-3.5rem)] snap-start rounded-2xl border border-slate-200 bg-slate-100/90 p-1 sm:flex-[0_0_320px] lg:flex-auto">
+    <section className={`min-w-0 flex-[0_0_calc(100vw-3.5rem)] snap-start rounded-2xl border p-1 sm:flex-[0_0_320px] lg:flex-auto ${isToday ? 'border-amber-400 bg-amber-50 shadow-lg shadow-amber-950/10' : 'border-slate-200 bg-slate-100/90'}`}>
       <header className="mb-3 flex items-center justify-between border-b border-slate-200 px-2 pb-3">
-        <div><h2 className="font-bold text-slate-900">{day.dayName}</h2><p className="text-xs text-slate-500">{day.date}</p></div>
+        <div><h2 className="font-bold text-slate-900">{day.dayName}{isToday && <span className="ml-2 rounded-full bg-amber-400 px-2 py-1 text-[10px] uppercase tracking-wide text-slate-950">Dnes</span>}</h2><p className="text-xs text-slate-500">{day.date}</p></div>
         <CalendarDays size={18} className="text-teal-700" />
       </header>
       <div className="relative" style={{ height: `${(DAY_END - DAY_START) * MINUTE_HEIGHT}px` }}>

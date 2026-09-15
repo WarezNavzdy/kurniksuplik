@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { DayColumn } from './components/DayColumn'
 import { WeekTabs } from './components/WeekTabs'
 import { useSchedule } from './hooks/useSchedule'
+import type { ScheduleWeek } from './types/schedule'
 
 function formatUpdatedAt(value: string | null) {
   if (!value) return 'Čas aktualizace není k dispozici'
@@ -29,11 +30,51 @@ function getSavedCircle() {
   return CIRCLES.includes(parsedCircle) ? parsedCircle : 1003
 }
 
+function toNearestScheduleDate(value: string, now: Date) {
+  const match = value.match(/^(\d{1,2})\.(\d{1,2})\.?$/)
+  if (!match) return null
+
+  const candidates = [-1, 0, 1].map((yearOffset) => new Date(now.getFullYear() + yearOffset, Number(match[2]) - 1, Number(match[1])))
+  return candidates.reduce((closest, candidate) => Math.abs(candidate.getTime() - now.getTime()) < Math.abs(closest.getTime() - now.getTime()) ? candidate : closest)
+}
+
+function getCurrentSchedulePosition(weeks: ScheduleWeek[]) {
+  const now = new Date()
+  const getWeekStart = (date: Date) => {
+    const start = new Date(date)
+    start.setDate(start.getDate() - ((start.getDay() + 6) % 7))
+    start.setHours(0, 0, 0, 0)
+    return start
+  }
+  const datedWeeks = weeks.map((week) => ({
+    week,
+    dates: week.days.map((day) => toNearestScheduleDate(day.date, now)).filter((date): date is Date => date !== null),
+  })).filter(({ dates }) => dates.length).map((entry) => ({
+    ...entry,
+    start: getWeekStart(entry.dates[0]),
+  }))
+  const current = datedWeeks.find(({ start }) => {
+    const end = new Date(start)
+    end.setDate(end.getDate() + 6)
+    end.setHours(23, 59, 59, 999)
+    return now >= start && now <= end
+  })
+  const selected = current || (now < datedWeeks[0].start ? datedWeeks[0] : datedWeeks[datedWeeks.length - 1])
+  const today = selected.week.days.find((day) => {
+    const date = toNearestScheduleDate(day.date, now)
+    return date?.toDateString() === now.toDateString()
+  })
+
+  return { weekId: selected.week.id, dayDate: today?.date }
+}
+
 function App() {
   const [circle, setCircle] = useState(getSavedCircle)
   const { weeks, updatedAt, loading, error } = useSchedule(circle)
   const [activeWeekId, setActiveWeekId] = useState('')
-  const activeWeek = weeks.find((week) => week.id === activeWeekId) || weeks[0]
+  const currentPosition = weeks.length ? getCurrentSchedulePosition(weeks) : null
+  const selectedWeekId = activeWeekId || currentPosition?.weekId || ''
+  const activeWeek = weeks.find((week) => week.id === selectedWeekId) || weeks[0]
 
   function handleCircleChange(nextCircle: number) {
     setCircle(nextCircle)
@@ -59,7 +100,7 @@ function App() {
       {loading && <div className="flex min-h-64 items-center justify-center rounded-3xl bg-white text-slate-500"><LoaderCircle className="mr-3 animate-spin" />Načítám rozvrh…</div>}
       {error && <div role="alert" className="flex items-center gap-3 rounded-2xl border border-red-300 bg-red-50 p-5 text-red-800"><AlertCircle />{error}</div>}
       {!loading && !error && weeks.length === 0 && <div className="rounded-3xl bg-white p-10 text-center text-slate-500">API nevrátilo žádné týdny.</div>}
-      {!loading && !error && activeWeek && <section className="space-y-5"><WeekTabs weeks={weeks} activeWeekId={activeWeek.id} onChange={setActiveWeekId} /><div className="schedule-scroll flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-3 lg:grid lg:grid-cols-[repeat(5,minmax(230px,1fr))] lg:gap-4 lg:overflow-x-auto lg:px-0">{activeWeek.days.map((day) => <DayColumn key={day.date} day={day} />)}</div></section>}
+      {!loading && !error && activeWeek && <section className="space-y-5"><WeekTabs weeks={weeks} activeWeekId={activeWeek.id} currentWeekId={currentPosition?.weekId} onChange={setActiveWeekId} /><div className="schedule-scroll flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-3 lg:grid lg:grid-cols-[repeat(5,minmax(230px,1fr))] lg:gap-4 lg:overflow-x-auto lg:px-0">{activeWeek.days.map((day) => <DayColumn key={day.date} day={day} isToday={day.date === currentPosition?.dayDate && activeWeek.id === currentPosition.weekId} />)}</div></section>}
       {error && <button type="button" onClick={() => window.location.reload()} className="mt-4 flex items-center gap-2 rounded-xl bg-amber-400 px-4 py-2 font-bold text-slate-950"><RefreshCw size={16} />Zkusit znovu</button>}
     </div>
   </main>
