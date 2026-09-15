@@ -83,6 +83,7 @@ function normalizeSchedule(payload: SchedulePayload, buildingLinks: Record<strin
 
 export function useSchedule() {
   const [weeks, setWeeks] = useState<ScheduleWeek[]>([])
+  const [updatedAt, setUpdatedAt] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -104,6 +105,7 @@ export function useSchedule() {
         const buildingLinks = parseBuildingLinks(await buildingResponse.text())
         const normalizedWeeks = normalizeSchedule(payload, buildingLinks)
         if (!Array.isArray(normalizedWeeks)) throw new Error('Odpověď API nemá očekávanou strukturu.')
+        setUpdatedAt(!Array.isArray(payload) && !('weeks' in payload) ? payload.generatedAt || null : null)
         setWeeks(normalizedWeeks)
       } catch (fetchError) {
         if (fetchError instanceof DOMException && fetchError.name === 'AbortError') return
@@ -117,5 +119,5 @@ export function useSchedule() {
     return () => controller.abort()
   }, [])
 
-  return { weeks, loading, error }
+  return { weeks, updatedAt, loading, error }
 }
