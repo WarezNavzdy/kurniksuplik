@@ -2,7 +2,10 @@ export interface Subject {
   id: string
   name: string
   teacher?: string
+  course?: string
   room?: string
+  building?: string
+  mapUrl?: string
   startTime: string
   endTime: string
   color?: string
@@ -31,6 +34,7 @@ export interface ApiClass {
   teacher?: string
   course?: string
   room?: string
+  building?: string
   start: string
   end: string
   type?: string

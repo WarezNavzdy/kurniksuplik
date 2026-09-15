@@ -18,7 +18,7 @@ function App() {
       {loading && <div className="flex min-h-64 items-center justify-center rounded-3xl bg-white text-slate-500"><LoaderCircle className="mr-3 animate-spin" />Načítám rozvrh…</div>}
       {error && <div role="alert" className="flex items-center gap-3 rounded-2xl border border-red-300 bg-red-50 p-5 text-red-800"><AlertCircle />{error}</div>}
       {!loading && !error && weeks.length === 0 && <div className="rounded-3xl bg-white p-10 text-center text-slate-500">API nevrátilo žádné týdny.</div>}
-      {!loading && !error && activeWeek && <section className="space-y-5"><WeekTabs weeks={weeks} activeWeekId={activeWeek.id} onChange={setActiveWeekId} /><div className="schedule-scroll flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-3 lg:grid lg:grid-cols-5 lg:gap-4 lg:overflow-visible lg:px-0">{activeWeek.days.map((day) => <DayColumn key={day.date} day={day} />)}</div></section>}
+      {!loading && !error && activeWeek && <section className="space-y-5"><WeekTabs weeks={weeks} activeWeekId={activeWeek.id} onChange={setActiveWeekId} /><div className="schedule-scroll flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-3 lg:grid lg:grid-cols-[repeat(5,minmax(230px,1fr))] lg:gap-4 lg:overflow-x-auto lg:px-0">{activeWeek.days.map((day) => <DayColumn key={day.date} day={day} />)}</div></section>}
       {error && <button type="button" onClick={() => window.location.reload()} className="mt-4 flex items-center gap-2 rounded-xl bg-amber-400 px-4 py-2 font-bold text-slate-950"><RefreshCw size={16} />Zkusit znovu</button>}
     </div>
   </main>
