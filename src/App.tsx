@@ -1,6 +1,7 @@
 import { AlertCircle, GraduationCap, LoaderCircle, RefreshCw, UsersRound } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { DayColumn } from './components/DayColumn'
+import { OptionalSubjects, type OptionalSubject } from './components/OptionalSubjects'
 import { WeekTabs } from './components/WeekTabs'
 import { useSchedule } from './hooks/useSchedule'
 import type { ScheduleWeek } from './types/schedule'
@@ -18,6 +19,8 @@ function formatUpdatedAt(value: string | null) {
 }
 
 const CIRCLE_COOKIE = 'rozvrh-kruh'
+const ELECTIVES_COOKIE = 'rozvrh-volitelne'
+const ELECTIVES_URL = 'https://wareznavzdy.github.io/rozvrh/dopytle.json'
 const CIRCLES = [...Array.from({ length: 20 }, (_, index) => index + 1001), 1101, 1102, 1103, 1104]
 
 function getSavedCircle() {
@@ -28,6 +31,18 @@ function getSavedCircle() {
   const parsedCircle = Number(savedCircle)
 
   return CIRCLES.includes(parsedCircle) ? parsedCircle : 1003
+}
+
+function getSavedElectives() {
+  const saved = document.cookie.split('; ').find((cookie) => cookie.startsWith(`${ELECTIVES_COOKIE}=`))?.split('=').slice(1).join('=')
+  if (!saved) return []
+
+  try {
+    const parsed = JSON.parse(decodeURIComponent(saved))
+    return Array.isArray(parsed) && parsed.every((code) => typeof code === 'string') ? parsed : []
+  } catch {
+    return []
+  }
 }
 
 function toNearestScheduleDate(value: string, now: Date) {
@@ -70,16 +85,57 @@ function getCurrentSchedulePosition(weeks: ScheduleWeek[]) {
 
 function App() {
   const [circle, setCircle] = useState(getSavedCircle)
-  const { weeks, updatedAt, loading, error } = useSchedule(circle)
+  const [optionalSubjects, setOptionalSubjects] = useState<OptionalSubject[]>([])
+  const [optionalCodes, setOptionalCodes] = useState<string[]>([])
+  const [optionalListLoading, setOptionalListLoading] = useState(true)
+  const [optionalListError, setOptionalListError] = useState<string | null>(null)
+  const { weeks, updatedAt, loading, error, electiveErrors, electiveLoading } = useSchedule(circle, optionalCodes)
   const [activeWeekId, setActiveWeekId] = useState('')
   const currentPosition = weeks.length ? getCurrentSchedulePosition(weeks) : null
   const selectedWeekId = activeWeekId || currentPosition?.weekId || ''
   const activeWeek = weeks.find((week) => week.id === selectedWeekId) || weeks[0]
 
+  useEffect(() => {
+    const controller = new AbortController()
+
+    async function loadOptionalSubjects() {
+      try {
+        const response = await fetch(ELECTIVES_URL, { signal: controller.signal })
+        if (!response.ok) throw new Error(`Server odpověděl kódem ${response.status}.`)
+        const rawSubjects = await response.json() as Record<string, { kod?: unknown; nazev?: unknown }>
+        const subjects = Object.entries(rawSubjects)
+          .filter(([, subject]) => typeof subject.kod === 'string' && typeof subject.nazev === 'string')
+          .map(([code, subject]) => ({ code, instituteCode: subject.kod as string, name: subject.nazev as string }))
+          .sort((first, second) => first.code.localeCompare(second.code, 'cs'))
+        const availableCodes = new Set(subjects.map((subject) => subject.code))
+        const savedCodes = getSavedElectives().filter((code) => availableCodes.has(code))
+        setOptionalSubjects(subjects)
+        setOptionalCodes(savedCodes)
+        document.cookie = `${ELECTIVES_COOKIE}=${encodeURIComponent(JSON.stringify(savedCodes))}; max-age=31536000; path=/; SameSite=Lax`
+      } catch (fetchError) {
+        if (fetchError instanceof DOMException && fetchError.name === 'AbortError') return
+        setOptionalListError(fetchError instanceof Error ? fetchError.message : 'Seznam předmětů se nepodařilo načíst.')
+      } finally {
+        setOptionalListLoading(false)
+      }
+    }
+
+    void loadOptionalSubjects()
+    return () => controller.abort()
+  }, [])
+
   function handleCircleChange(nextCircle: number) {
     setCircle(nextCircle)
     document.cookie = `${CIRCLE_COOKIE}=${nextCircle}; max-age=31536000; path=/; SameSite=Lax`
     setActiveWeekId('')
+  }
+
+  function handleOptionalToggle(code: string, selected: boolean) {
+    setOptionalCodes((currentCodes) => {
+      const nextCodes = selected ? [...new Set([...currentCodes, code])] : currentCodes.filter((currentCode) => currentCode !== code)
+      document.cookie = `${ELECTIVES_COOKIE}=${encodeURIComponent(JSON.stringify(nextCodes))}; max-age=31536000; path=/; SameSite=Lax`
+      return nextCodes
+    })
   }
 
   return <main className="min-h-screen bg-slate-950 text-slate-100">
@@ -97,6 +153,7 @@ function App() {
           <div className="rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-slate-400"><span className="mr-2 inline-block h-2 w-2 rounded-full bg-emerald-400" />Naposledy aktualizováno: {loading ? 'načítám…' : formatUpdatedAt(updatedAt)}</div>
         </div>
       </header>
+      <OptionalSubjects subjects={optionalSubjects} selectedCodes={optionalCodes} loading={optionalListLoading} error={optionalListError} scheduleErrors={electiveErrors} onToggle={handleOptionalToggle} />
       {loading && <div className="flex min-h-64 items-center justify-center rounded-3xl bg-white text-slate-500"><LoaderCircle className="mr-3 animate-spin" />Načítám rozvrh…</div>}
       {error && <div role="alert" className="flex items-center gap-3 rounded-2xl border border-red-300 bg-red-50 p-5 text-red-800"><AlertCircle />{error}</div>}
       {!loading && !error && weeks.length === 0 && <div className="rounded-3xl bg-white p-10 text-center text-slate-500">API nevrátilo žádné týdny.</div>}

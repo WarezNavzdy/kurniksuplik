@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import type { ApiScheduleResponse, SchedulePayload, ScheduleWeek } from '../types/schedule'
+import type { ApiScheduleResponse, SchedulePayload, ScheduleWeek, Subject } from '../types/schedule'
 
 const API_URL = 'https://pytle.warezovaadresa.workers.dev/'
 const BUILDING_MAP_URL = 'https://wareznavzdy.github.io/rozvrh/pytle.json'
+const electiveScheduleCache = new Map<string, Promise<ScheduleWeek[]>>()
 
 const WEEKDAYS = ['Pondělí', 'Úterý', 'Středa', 'Čtvrtek', 'Pátek']
 const WEEKDAY_ALIASES = ['po', 'út', 'st', 'čt', 'pá']
@@ -98,9 +99,9 @@ function normalizeDays(days: ScheduleWeek['days']): ScheduleWeek['days'] {
   })
 }
 
-function normalizeSchedule(payload: SchedulePayload, buildingLinks: Record<string, string>): ScheduleWeek[] {
-  if (Array.isArray(payload)) return payload.map((week) => ({ ...week, days: normalizeDays(week.days) }))
-  if ('weeks' in payload) return payload.weeks.map((week) => ({ ...week, days: normalizeDays(week.days) }))
+function normalizeSchedule(payload: SchedulePayload, buildingLinks: Record<string, string>, source: Subject['source'] = 'circle', sourceCode?: string): ScheduleWeek[] {
+  if (Array.isArray(payload)) return payload.map((week) => ({ ...week, days: normalizeDays(week.days).map((day) => ({ ...day, subjects: day.subjects.map((subject) => ({ ...subject, source, sourceCode })) })) }))
+  if ('weeks' in payload) return payload.weeks.map((week) => ({ ...week, days: normalizeDays(week.days).map((day) => ({ ...day, subjects: day.subjects.map((subject) => ({ ...subject, source, sourceCode })) })) }))
 
   const groupedDays = new Map<string, ApiScheduleResponse['days']>()
   let previousMonth = 0
@@ -135,8 +136,10 @@ function normalizeSchedule(payload: SchedulePayload, buildingLinks: Record<strin
         const location = normalizeLocation(item)
 
         return {
-          id: item.subjectId,
+          id: `${source}-${sourceCode || 'circle'}-${item.subjectId}-${item.start}-${item.end}`,
           name: item.subject,
+          source,
+          sourceCode,
           teacher: item.teacher,
           course: location.course,
           room: location.room,
@@ -152,11 +155,47 @@ function normalizeSchedule(payload: SchedulePayload, buildingLinks: Record<strin
   }))
 }
 
-export function useSchedule(circle: number) {
-  const [weeks, setWeeks] = useState<ScheduleWeek[]>([])
+function loadElectiveSchedule(code: string, buildingLinks: Record<string, string>) {
+  const cached = electiveScheduleCache.get(code)
+  if (cached) return cached
+
+  const request = fetch(`${API_URL}?predmet=${encodeURIComponent(code)}`)
+    .then(async (response) => {
+      if (!response.ok) throw new Error(`Server odpověděl kódem ${response.status}.`)
+      return normalizeSchedule(await response.json() as SchedulePayload, buildingLinks, 'elective', code)
+    })
+  electiveScheduleCache.set(code, request)
+  return request
+}
+
+function mergeSchedules(baseWeeks: ScheduleWeek[], electiveWeeksByCode: Record<string, ScheduleWeek[]>) {
+  const electiveWeeks = Object.values(electiveWeeksByCode)
+
+  return baseWeeks.map((week, weekIndex) => ({
+    ...week,
+    days: week.days.map((day) => ({
+      ...day,
+      subjects: [
+        ...day.subjects,
+        ...electiveWeeks.flatMap((weeks) => {
+          const electiveWeek = weeks.find((candidate) => candidate.id === week.id) || weeks[weekIndex]
+          return electiveWeek?.days.find((candidate) => candidate.date === day.date || candidate.dayName === day.dayName)?.subjects || []
+        }),
+      ],
+    })),
+  }))
+}
+
+export function useSchedule(circle: number, electiveCodes: string[] = []) {
+  const [baseWeeks, setBaseWeeks] = useState<ScheduleWeek[]>([])
+  const [buildingLinks, setBuildingLinks] = useState<Record<string, string> | null>(null)
+  const [electiveWeeksByCode, setElectiveWeeksByCode] = useState<Record<string, ScheduleWeek[]>>({})
+  const [electiveErrors, setElectiveErrors] = useState<Record<string, string>>({})
+  const [electiveLoading, setElectiveLoading] = useState(false)
   const [updatedAt, setUpdatedAt] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const electiveKey = electiveCodes.join('|')
 
   useEffect(() => {
     const controller = new AbortController()
@@ -177,7 +216,8 @@ export function useSchedule(circle: number) {
         const normalizedWeeks = normalizeSchedule(payload, buildingLinks)
         if (!Array.isArray(normalizedWeeks)) throw new Error('Odpověď API nemá očekávanou strukturu.')
         setUpdatedAt(!Array.isArray(payload) && !('weeks' in payload) ? payload.generatedAt || null : null)
-        setWeeks(normalizedWeeks)
+        setBuildingLinks(buildingLinks)
+        setBaseWeeks(normalizedWeeks)
       } catch (fetchError) {
         if (fetchError instanceof DOMException && fetchError.name === 'AbortError') return
         setError(fetchError instanceof Error ? fetchError.message : 'Rozvrh se nepodařilo načíst.')
@@ -190,5 +230,44 @@ export function useSchedule(circle: number) {
     return () => controller.abort()
   }, [circle])
 
-  return { weeks, updatedAt, loading, error }
+  useEffect(() => {
+    const codes = electiveKey ? electiveKey.split('|') : []
+    if (!buildingLinks || !codes.length) {
+      setElectiveWeeksByCode({})
+      setElectiveErrors({})
+      setElectiveLoading(false)
+      return
+    }
+
+    const links = buildingLinks
+    let active = true
+    setElectiveLoading(true)
+
+    async function loadElectives() {
+      const results = await Promise.all(codes.map(async (code) => {
+        try {
+          return { code, weeks: await loadElectiveSchedule(code, links) }
+        } catch (fetchError) {
+          return { code, error: fetchError instanceof Error ? fetchError.message : 'Předmět se nepodařilo načíst.' }
+        }
+      }))
+
+      if (!active) return
+      setElectiveWeeksByCode(Object.fromEntries(results.filter((result): result is { code: string; weeks: ScheduleWeek[] } => 'weeks' in result).map((result) => [result.code, result.weeks])))
+      setElectiveErrors(Object.fromEntries(results.filter((result): result is { code: string; error: string } => 'error' in result).map((result) => [result.code, result.error])))
+      setElectiveLoading(false)
+    }
+
+    void loadElectives()
+    return () => { active = false }
+  }, [buildingLinks, electiveKey])
+
+  return {
+    weeks: mergeSchedules(baseWeeks, electiveWeeksByCode),
+    updatedAt,
+    loading,
+    error,
+    electiveErrors,
+    electiveLoading,
+  }
 }

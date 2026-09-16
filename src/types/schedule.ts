@@ -1,6 +1,8 @@
 export interface Subject {
   id: string
   name: string
+  source?: 'circle' | 'elective'
+  sourceCode?: string
   teacher?: string
   course?: string
   room?: string
