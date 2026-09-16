@@ -6,12 +6,14 @@ interface SubjectCardProps {
 }
 
 export function SubjectCard({ subject }: SubjectCardProps) {
+  const hasLongName = subject.name.length > 40
+
   return (
-    <article className="group relative h-full overflow-hidden rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+    <article className="group relative h-full overflow-x-hidden overflow-y-auto rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
       <div className="absolute inset-y-0 left-0 w-1 bg-amber-400" style={{ backgroundColor: subject.color || undefined }} />
-      <div className="flex items-start justify-between gap-2">
-        <h3 className="flex min-w-0 items-start gap-1.5 text-sm font-bold leading-tight text-slate-900"><BookOpen size={13} className="mt-0.5 shrink-0 text-teal-700" />{subject.name}</h3>
-        <span className="shrink-0 text-[10px] font-bold text-slate-500">{subject.startTime}–{subject.endTime}</span>
+      <div className={`flex items-start justify-between gap-2 ${hasLongName ? 'flex-col' : ''}`}>
+        <h3 className={`flex min-w-0 items-start gap-1.5 font-bold leading-tight text-slate-900 ${hasLongName ? 'text-xs' : 'text-sm'}`}><BookOpen size={13} className="mt-0.5 shrink-0 text-teal-700" />{subject.name}</h3>
+        <span className={`shrink-0 text-[10px] font-bold text-slate-500 ${hasLongName ? 'self-end' : ''}`}>{subject.startTime}–{subject.endTime}</span>
       </div>
       {subject.source === 'elective' && <span className="mt-1 inline-block rounded-full bg-teal-100 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-teal-800">Volitelný</span>}
       <div className="mt-2 space-y-1 text-[11px] leading-tight text-slate-500">
