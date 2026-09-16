@@ -51,14 +51,14 @@ function getPublicHolidayName(dateText: string) {
   for (const year of [currentYear - 1, currentYear, currentYear + 1]) {
     const fixedHolidays: Record<string, string> = {
       '1.1': 'Nový rok',
-      '1.5': 'Svátek práce',
-      '8.5': 'Den vítězství',
+      '1.5': 'Svátek práce - jako student toto slovo neznám',
+      '8.5': 'Den vítězství - ou jé',
       '5.7': 'Den slovanských věrozvěstů Cyrila a Metoděje',
-      '6.7': 'Den upálení mistra Jana Husa',
-      '28.9': 'Den české státnosti',
-      '28.10': 'Den vzniku samostatného československého státu',
-      '17.11': 'Den boje za svobodu a demokracii',
-      '24.12': 'Štědrý den',
+      '6.7': 'Den upálení mistra Jana Husa - Honzo, upaluj',
+      '28.9': 'Den české státnosti - zabili Vaška',
+      '28.10': 'Den vzniku samostatného československého státu - tatíček Masařík',
+      '17.11': 'Den boje za svobodu a demokracii - slova, závist, zášť',
+      '24.12': 'Štědrý den - Purpura na plotně voníííí',
       '25.12': '1. svátek vánoční',
       '26.12': '2. svátek vánoční',
     }
