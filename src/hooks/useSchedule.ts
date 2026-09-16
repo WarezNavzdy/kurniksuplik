@@ -155,14 +155,31 @@ function normalizeSchedule(payload: SchedulePayload, buildingLinks: Record<strin
   }))
 }
 
+function isSisLoginUrl(value: string) {
+  try {
+    const url = new URL(value)
+    const normalizedUrl = `${url.hostname}${url.pathname}${url.search}`.toLocaleLowerCase('cs-CZ')
+    return normalizedUrl.includes('login') || normalizedUrl.includes('prihlas') || normalizedUrl.includes('přihlas')
+  } catch {
+    return false
+  }
+}
+
+function scheduleHasSubjects(weeks: ScheduleWeek[]) {
+  return weeks.some((week) => week.days.some((day) => day.subjects.length > 0))
+}
+
 function loadElectiveSchedule(code: string, buildingLinks: Record<string, string>) {
   const cached = electiveScheduleCache.get(code)
   if (cached) return cached
 
   const request = fetch(`${API_URL}?predmet=${encodeURIComponent(code)}`)
     .then(async (response) => {
+      if (isSisLoginUrl(response.url)) throw new Error('Předmět se nepodařilo načíst: API přesměrovalo na přihlášení do SIS.')
       if (!response.ok) throw new Error(`Server odpověděl kódem ${response.status}.`)
-      return normalizeSchedule(await response.json() as SchedulePayload, buildingLinks, 'elective', code)
+      const weeks = normalizeSchedule(await response.json() as SchedulePayload, buildingLinks, 'elective', code)
+      if (!scheduleHasSubjects(weeks)) throw new Error('Předmět nemá zavedené hodiny.')
+      return weeks
     })
   electiveScheduleCache.set(code, request)
   return request
