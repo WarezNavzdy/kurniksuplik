@@ -1,4 +1,5 @@
 import { Check, ChevronDown, Search, Sparkles, X } from 'lucide-react'
+import { AlertTriangle, Check, ChevronDown, Search, Sparkles, X } from 'lucide-react'
 import { useState } from 'react'
 
 export interface OptionalSubject {
@@ -30,11 +31,19 @@ export function OptionalSubjects({
   const [query, setQuery] = useState('')
 
   const normalizedQuery = query.trim().toLocaleLowerCase('cs-CZ')
+  const normalizedQuery = (query || '').trim().toLocaleLowerCase('cs-CZ')
   const filteredSubjects = subjects.filter((subject) =>
     [subject.code, subject.name, subject.instituteCode].some((value) =>
       value.toLocaleLowerCase('cs-CZ').includes(normalizedQuery)
+      (value || '').toLocaleLowerCase('cs-CZ').includes(normalizedQuery)
     )
   )
+
+  const failingSelectedCodes = selectedCodes.filter((code) => Boolean(scheduleErrors[code]))
+
+  function handleRemoveUnavailable() {
+    failingSelectedCodes.forEach((code) => onToggle(code, false))
+  }
 
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900/90 shadow-sm transition-all duration-200">
@@ -52,6 +61,15 @@ export function OptionalSubjects({
           {selectedCodes.length > 0 && (
             <span className="rounded-full bg-teal-400 px-2 py-0.5 text-xs font-black text-slate-950">
               {selectedCodes.length}
+            </span>
+          )}
+          {failingSelectedCodes.length > 0 && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-300"
+              title={`${failingSelectedCodes.length} předmětů se nepodařilo načíst`}
+            >
+              <AlertTriangle size={11} className="text-amber-400" />
+              {failingSelectedCodes.length} nedostupných
             </span>
           )}
         </div>
@@ -83,6 +101,27 @@ export function OptionalSubjects({
 
           {!loading && !error && (
             <>
+              {/* Notice when some selected electives cannot be loaded */}
+              {failingSelectedCodes.length > 0 && (
+                <div className="mb-3 flex items-center justify-between gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+                  <div className="flex items-center gap-1.5">
+                    <AlertTriangle size={14} className="shrink-0 text-amber-400" />
+                    <span>
+                      {failingSelectedCodes.length}{' '}
+                      {failingSelectedCodes.length === 1 ? 'předmět nelze' : 'předměty nelze'} načíst
+                      (SIS vyžaduje přihlášení).
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRemoveUnavailable}
+                    className="shrink-0 rounded-lg bg-amber-400/20 px-2 py-1 font-bold text-amber-300 hover:bg-amber-400/30 transition-colors"
+                  >
+                    Odebrat nedostupné
+                  </button>
+                </div>
+              )}
+
               {/* Search input with clear button */}
               <div className="relative mb-3">
                 <Search
@@ -119,6 +158,9 @@ export function OptionalSubjects({
                       className={`flex cursor-pointer items-start gap-3 rounded-xl p-2.5 transition-colors ${
                         checked
                           ? 'bg-teal-950/40 border border-teal-800/50'
+                          ? hasScheduleError
+                            ? 'bg-amber-950/30 border border-amber-800/40'
+                            : 'bg-teal-950/40 border border-teal-800/50'
                           : 'hover:bg-slate-800/70 border border-transparent'
                       }`}
                     >
@@ -130,6 +172,16 @@ export function OptionalSubjects({
                           className="peer sr-only"
                         />
                         {checked && <Check size={12} className="text-teal-400 stroke-[3]" />}
+                        {checked && (
+                          <Check
+                            size={12}
+                            className={
+                              hasScheduleError
+                                ? 'text-amber-400 stroke-[3]'
+                                : 'text-teal-400 stroke-[3]'
+                            }
+                          />
+                        )}
                       </div>
 
                       <div className="min-w-0 flex-1 text-xs sm:text-sm">
@@ -144,6 +196,8 @@ export function OptionalSubjects({
                         </span>
                         {hasScheduleError && (
                           <span className="mt-1 block text-xs text-red-400">
+                          <span className="mt-1 inline-flex items-center gap-1 rounded bg-amber-400/10 px-1.5 py-0.5 text-[11px] font-medium text-amber-300">
+                            <AlertTriangle size={11} className="text-amber-400" />
                             {hasScheduleError}
                           </span>
                         )}
@@ -162,6 +216,9 @@ export function OptionalSubjects({
               {/* Footer status */}
               <div className="mt-3 flex items-center justify-between border-t border-slate-800/80 pt-2.5 text-xs text-slate-400">
                 <span>Vybráno {selectedCodes.length} z {subjects.length} předmětů</span>
+                <span>
+                  Vybráno {selectedCodes.length} z {subjects.length} předmětů
+                </span>
                 {selectedCodes.length > 0 && (
                   <button
                     type="button"

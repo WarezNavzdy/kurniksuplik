@@ -22,10 +22,17 @@ function parseBuildingLinks(rawJson: string): Record<string, string> {
     return JSON.parse(rawJson) as Record<string, string>
   } catch {
     return JSON.parse(rawJson.replace(/,\s*([}\]])/g, '$1')) as Record<string, string>
+    try {
+      return JSON.parse(rawJson.replace(/,\s*([}\]])/g, '$1')) as Record<string, string>
+    } catch {
+      return {}
+    }
   }
 }
 
 function parseDayDate(dateText: string): Date | null {
+function parseDayDate(dateText?: string | null): Date | null {
+  if (!dateText || typeof dateText !== 'string') return null
   const match = dateText.match(/^(\d{1,2})\.(\d{1,2})\.?$/)
   if (!match) return null
 
@@ -47,6 +54,15 @@ function normalizeDays(days: ScheduleWeek['days']): ScheduleWeek['days'] {
     const canonicalDayName = dayIndex >= 0 ? WEEKDAYS[dayIndex] : day.dayName
     return [canonicalDayName, day]
   }))
+  const daysByName = new Map(
+    days.map((day) => {
+      const dayIndex = day.dayName
+        ? WEEKDAY_ALIASES.indexOf(day.dayName.toLocaleLowerCase('cs-CZ'))
+        : -1
+      const canonicalDayName = dayIndex >= 0 ? WEEKDAYS[dayIndex] : day.dayName || ''
+      return [canonicalDayName, day]
+    })
+  )
 
   const knownDates = new Map<string, Date>()
   days.forEach((day) => {
@@ -56,11 +72,22 @@ function normalizeDays(days: ScheduleWeek['days']): ScheduleWeek['days'] {
     const dayIndex = WEEKDAY_ALIASES.indexOf(day.dayName.toLocaleLowerCase('cs-CZ'))
     const canonicalDayName = dayIndex >= 0 ? WEEKDAYS[dayIndex] : day.dayName
     knownDates.set(canonicalDayName, parsedDate)
+    const dayIndex = day.dayName
+      ? WEEKDAY_ALIASES.indexOf(day.dayName.toLocaleLowerCase('cs-CZ'))
+      : -1
+    const canonicalDayName = dayIndex >= 0 ? WEEKDAYS[dayIndex] : day.dayName || ''
+    if (canonicalDayName) knownDates.set(canonicalDayName, parsedDate)
   })
 
   return WEEKDAYS.map((dayName) => {
     const existingDay = daysByName.get(dayName)
     if (existingDay) return existingDay
+    if (existingDay) {
+      return {
+        ...existingDay,
+        dayName, // Ensure canonical day name
+      }
+    }
 
     const targetIndex = WEEKDAYS.indexOf(dayName)
     let bestKnownDayName: string | null = null
@@ -102,6 +129,31 @@ function normalizeDays(days: ScheduleWeek['days']): ScheduleWeek['days'] {
 function normalizeSchedule(payload: SchedulePayload, buildingLinks: Record<string, string>, source: Subject['source'] = 'circle', sourceCode?: string): ScheduleWeek[] {
   if (Array.isArray(payload)) return payload.map((week) => ({ ...week, days: normalizeDays(week.days).map((day) => ({ ...day, subjects: day.subjects.map((subject) => ({ ...subject, source, sourceCode })) })) }))
   if ('weeks' in payload) return payload.weeks.map((week) => ({ ...week, days: normalizeDays(week.days).map((day) => ({ ...day, subjects: day.subjects.map((subject) => ({ ...subject, source, sourceCode })) })) }))
+function normalizeSchedule(
+  payload: SchedulePayload,
+  buildingLinks: Record<string, string>,
+  source: Subject['source'] = 'circle',
+  sourceCode?: string
+): ScheduleWeek[] {
+  if (Array.isArray(payload)) {
+    return payload.map((week) => ({
+      ...week,
+      days: normalizeDays(week.days).map((day) => ({
+        ...day,
+        subjects: (day.subjects || []).map((subject) => ({ ...subject, source, sourceCode })),
+      })),
+    }))
+  }
+
+  if ('weeks' in payload) {
+    return payload.weeks.map((week) => ({
+      ...week,
+      days: normalizeDays(week.days).map((day) => ({
+        ...day,
+        subjects: (day.subjects || []).map((subject) => ({ ...subject, source, sourceCode })),
+      })),
+    }))
+  }
 
   const groupedDays = new Map<string, ApiScheduleResponse['days']>()
   let previousMonth = 0
@@ -110,6 +162,8 @@ function normalizeSchedule(payload: SchedulePayload, buildingLinks: Record<strin
 
   payload.days.forEach((day) => {
     const [, dayText, monthText] = day.date.match(/^(\d{1,2})\.(\d{1,2})\.?$/) || []
+  ;(payload.days || []).forEach((day) => {
+    const [, dayText, monthText] = (day.date || '').match(/^(\d{1,2})\.(\d{1,2})\.?$/) || []
     const month = Number(monthText)
     if (month && month < previousMonth) year += 1
     previousMonth = month || previousMonth
@@ -119,6 +173,8 @@ function normalizeSchedule(payload: SchedulePayload, buildingLinks: Record<strin
     if (monday) monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7))
     if (day.week !== null && day.week !== undefined) currentWeekKey = String(day.week)
     if (!currentWeekKey && monday) currentWeekKey = `${monday.getFullYear()}-${monday.getMonth() + 1}-${monday.getDate()}`
+    if (!currentWeekKey && monday)
+      currentWeekKey = `${monday.getFullYear()}-${monday.getMonth() + 1}-${monday.getDate()}`
     const weekKey = currentWeekKey || 'unknown'
     const days = groupedDays.get(weekKey) || []
     days.push(day)
@@ -134,6 +190,12 @@ function normalizeSchedule(payload: SchedulePayload, buildingLinks: Record<strin
       dayName: day.day,
       subjects: day.classes.map((item) => {
         const location = normalizeLocation(item)
+    days: normalizeDays(
+      days.map((day) => ({
+        date: day.date,
+        dayName: day.day,
+        subjects: (day.classes || []).map((item) => {
+          const location = normalizeLocation(item)
 
         return {
           id: `${source}-${sourceCode || 'circle'}-${item.subjectId}-${item.start}-${item.end}`,
@@ -152,6 +214,24 @@ function normalizeSchedule(payload: SchedulePayload, buildingLinks: Record<strin
         }
       }),
     }))),
+          return {
+            id: `${source}-${sourceCode || 'circle'}-${day.date}-${item.subjectId}-${item.start}-${item.end}`,
+            name: item.subject,
+            source,
+            sourceCode,
+            teacher: item.teacher,
+            course: location.course,
+            room: location.room,
+            building: item.building,
+            mapUrl: item.building ? buildingLinks[item.building] : undefined,
+            startTime: item.start,
+            endTime: item.end,
+            color: item.color,
+            note: item.type,
+          }
+        }),
+      }))
+    ),
   }))
 }
 
@@ -179,13 +259,46 @@ function loadElectiveSchedule(code: string, buildingLinks: Record<string, string
       if (!response.ok) throw new Error(`Server odpověděl kódem ${response.status}.`)
       const weeks = normalizeSchedule(await response.json() as SchedulePayload, buildingLinks, 'elective', code)
       if (!scheduleHasSubjects(weeks)) throw new Error('Předmět nemá zavedené hodiny.')
+      let data: any = null
+      try {
+        data = await response.json()
+      } catch {
+        // Not JSON response
+      }
+
+      if (data && (data.loginDetected || data.status === 302 || data.error?.includes('SIS'))) {
+        throw new Error('SIS vyžaduje přihlášení pro tento předmět.')
+      }
+
+      if (!response.ok) {
+        throw new Error(data?.error || `Rozvrh předmětu není dostupný (${response.status}).`)
+      }
+
+      if (!data) {
+        throw new Error('Odpověď API je prázdná.')
+      }
+
+      const weeks = normalizeSchedule(data as SchedulePayload, buildingLinks, 'elective', code)
+      if (!scheduleHasSubjects(weeks)) {
+        throw new Error('Předmět nemá zavedené žádné hodiny.')
+      }
       return weeks
     })
+    .catch((err) => {
+      // Don't retain failed requests in cache so that retry works
+      electiveScheduleCache.delete(code)
+      throw err
+    })
+
   electiveScheduleCache.set(code, request)
   return request
 }
 
 function mergeSchedules(baseWeeks: ScheduleWeek[], electiveWeeksByCode: Record<string, ScheduleWeek[]>) {
+function mergeSchedules(
+  baseWeeks: ScheduleWeek[],
+  electiveWeeksByCode: Record<string, ScheduleWeek[]>
+) {
   const electiveWeeks = Object.values(electiveWeeksByCode)
 
   return baseWeeks.map((week, weekIndex) => ({
@@ -197,6 +310,13 @@ function mergeSchedules(baseWeeks: ScheduleWeek[], electiveWeeksByCode: Record<s
         ...electiveWeeks.flatMap((weeks) => {
           const electiveWeek = weeks.find((candidate) => candidate.id === week.id) || weeks[weekIndex]
           return electiveWeek?.days.find((candidate) => candidate.date === day.date || candidate.dayName === day.dayName)?.subjects || []
+          const electiveWeek =
+            weeks.find((candidate) => candidate.id === week.id) || weeks[weekIndex]
+          return (
+            electiveWeek?.days.find(
+              (candidate) => candidate.date === day.date || candidate.dayName === day.dayName
+            )?.subjects || []
+          )
         }),
       ],
     })),
@@ -227,12 +347,19 @@ export function useSchedule(circle: number, electiveCodes: string[] = []) {
         ])
         if (!response.ok) throw new Error(`Server odpověděl kódem ${response.status}.`)
         if (!buildingResponse.ok) throw new Error(`Mapa budov odpověděla kódem ${buildingResponse.status}.`)
+        if (!buildingResponse.ok)
+          throw new Error(`Mapa budov odpověděla kódem ${buildingResponse.status}.`)
 
         const payload = (await response.json()) as SchedulePayload
         const buildingLinks = parseBuildingLinks(await buildingResponse.text())
         const normalizedWeeks = normalizeSchedule(payload, buildingLinks)
         if (!Array.isArray(normalizedWeeks)) throw new Error('Odpověď API nemá očekávanou strukturu.')
         setUpdatedAt(!Array.isArray(payload) && !('weeks' in payload) ? payload.generatedAt || null : null)
+        if (!Array.isArray(normalizedWeeks))
+          throw new Error('Odpověď API nemá očekávanou strukturu.')
+        setUpdatedAt(
+          !Array.isArray(payload) && !('weeks' in payload) ? payload.generatedAt || null : null
+        )
         setBuildingLinks(buildingLinks)
         setBaseWeeks(normalizedWeeks)
       } catch (fetchError) {
@@ -268,15 +395,45 @@ export function useSchedule(circle: number, electiveCodes: string[] = []) {
           return { code, error: fetchError instanceof Error ? fetchError.message : 'Předmět se nepodařilo načíst.' }
         }
       }))
+      const results = await Promise.all(
+        codes.map(async (code) => {
+          try {
+            return { code, weeks: await loadElectiveSchedule(code, links) }
+          } catch (fetchError) {
+            return {
+              code,
+              error:
+                fetchError instanceof Error ? fetchError.message : 'Předmět se nepodařilo načíst.',
+            }
+          }
+        })
+      )
 
       if (!active) return
       setElectiveWeeksByCode(Object.fromEntries(results.filter((result): result is { code: string; weeks: ScheduleWeek[] } => 'weeks' in result).map((result) => [result.code, result.weeks])))
       setElectiveErrors(Object.fromEntries(results.filter((result): result is { code: string; error: string } => 'error' in result).map((result) => [result.code, result.error])))
+      setElectiveWeeksByCode(
+        Object.fromEntries(
+          results
+            .filter((result): result is { code: string; weeks: ScheduleWeek[] } => 'weeks' in result)
+            .map((result) => [result.code, result.weeks])
+        )
+      )
+      setElectiveErrors(
+        Object.fromEntries(
+          results
+            .filter((result): result is { code: string; error: string } => 'error' in result)
+            .map((result) => [result.code, result.error])
+        )
+      )
       setElectiveLoading(false)
     }
 
     void loadElectives()
     return () => { active = false }
+    return () => {
+      active = false
+    }
   }, [buildingLinks, electiveKey])
 
   return {

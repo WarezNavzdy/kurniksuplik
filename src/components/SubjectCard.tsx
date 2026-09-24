@@ -10,6 +10,10 @@ interface SubjectCardProps {
 function getDurationMinutes(start: string, end: string): number {
   const [sh, sm] = start.split(':').map(Number)
   const [eh, em] = end.split(':').map(Number)
+function getDurationMinutes(start?: string, end?: string): number {
+  if (!start || !end) return 0
+  const [sh = 0, sm = 0] = start.split(':').map(Number)
+  const [eh = 0, em = 0] = end.split(':').map(Number)
   if (Number.isNaN(sh) || Number.isNaN(eh)) return 0
   return (eh * 60 + em) - (sh * 60 + sm)
 }
@@ -17,6 +21,7 @@ function getDurationMinutes(start: string, end: string): number {
 export function SubjectCard({ subject, variant = 'timeline', isCurrent = false }: SubjectCardProps) {
   const duration = getDurationMinutes(subject.startTime, subject.endTime)
   const hasLongName = subject.name.length > 35
+  const hasLongName = (subject.name || '').length > 35
   const accentColor = subject.color || (subject.source === 'elective' ? '#2dd4bf' : '#fbbf24')
 
   if (variant === 'agenda') {
@@ -42,6 +47,7 @@ export function SubjectCard({ subject, variant = 'timeline', isCurrent = false }
               <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-800 px-2.5 py-1 text-xs font-bold text-amber-300">
                 <Clock size={13} className="text-amber-400" />
                 {subject.startTime} – {subject.endTime}
+                {subject.startTime || '—'} – {subject.endTime || '—'}
               </span>
               {duration > 0 && (
                 <span className="text-[11px] font-medium text-slate-400">
@@ -69,6 +75,7 @@ export function SubjectCard({ subject, variant = 'timeline', isCurrent = false }
           {/* Subject title */}
           <h3 className="text-base font-bold leading-snug tracking-tight text-white group-hover:text-amber-200 transition-colors">
             {subject.name}
+            {subject.name || 'Předmět bez názvu'}
           </h3>
 
           {/* Additional details: Teacher, Room, Course type */}
@@ -144,6 +151,7 @@ export function SubjectCard({ subject, variant = 'timeline', isCurrent = false }
           >
             <BookOpen size={12} className="mt-0.5 shrink-0 text-amber-400" />
             <span className="line-clamp-2">{subject.name}</span>
+            <span className="line-clamp-2">{subject.name || 'Předmět'}</span>
           </h3>
           <span
             className={`shrink-0 rounded bg-slate-800 px-1 py-0.5 text-[9px] font-bold text-amber-300 ${
@@ -151,6 +159,7 @@ export function SubjectCard({ subject, variant = 'timeline', isCurrent = false }
             }`}
           >
             {subject.startTime}–{subject.endTime}
+            {subject.startTime || '—'}–{subject.endTime || '—'}
           </span>
         </div>
 

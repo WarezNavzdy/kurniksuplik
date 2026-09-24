@@ -57,7 +57,8 @@ function getSavedElectives() {
   }
 }
 
-function toNearestScheduleDate(value: string, now: Date) {
+function toNearestScheduleDate(value: string | undefined, now: Date) {
+  if (!value || typeof value !== 'string') return null
   const match = value.match(/^(\d{1,2})\.(\d{1,2})\.?$/)
   if (!match) return null
 
@@ -82,15 +83,18 @@ function getCurrentSchedulePosition(weeks: ScheduleWeek[]) {
   const datedWeeks = weeks
     .map((week) => ({
       week,
-      dates: week.days
+      dates: (week.days || [])
         .map((day) => toNearestScheduleDate(day.date, now))
         .filter((date): date is Date => date !== null),
     }))
-    .filter(({ dates }) => dates.length)
+    .filter(({ dates }) => dates.length > 0)
     .map((entry) => ({
       ...entry,
       start: getWeekStart(entry.dates[0]),
     }))
+
+  if (!datedWeeks.length) return null
+
   const current = datedWeeks.find(({ start }) => {
     const end = new Date(start)
     end.setDate(end.getDate() + 6)
@@ -98,7 +102,7 @@ function getCurrentSchedulePosition(weeks: ScheduleWeek[]) {
     return now >= start && now <= end
   })
   const selected =
-    current || (now < datedWeeks[0]?.start ? datedWeeks[0] : datedWeeks[datedWeeks.length - 1])
+    current || (now < datedWeeks[0].start ? datedWeeks[0] : datedWeeks[datedWeeks.length - 1])
   if (!selected) return null
 
   const today = selected.week.days.find((day) => {
@@ -127,13 +131,15 @@ function App() {
   const activeWeek = weeks.find((week) => week.id === selectedWeekId) || weeks[0]
   const isCurrentWeek = Boolean(currentPosition && activeWeek?.id === currentPosition.weekId)
 
-  // Auto-scroll on mobile to today's column when viewing current week
+  // Smoothly scroll horizontal container on mobile to today's column when viewing current week
   useEffect(() => {
-    if (isCurrentWeek && currentPosition?.dayDate) {
+    if (isCurrentWeek && currentPosition?.dayDate && scheduleScrollRef.current) {
       const timer = setTimeout(() => {
+        const container = scheduleScrollRef.current
         const todayEl = document.getElementById('today-column')
-        if (todayEl) {
-          todayEl.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+        if (container && todayEl) {
+          const scrollLeft = todayEl.offsetLeft - (container.clientWidth - todayEl.clientWidth) / 2
+          container.scrollTo({ left: Math.max(0, scrollLeft), behavior: 'smooth' })
         }
       }, 150)
       return () => clearTimeout(timer)
@@ -149,7 +155,7 @@ function App() {
         if (!response.ok) throw new Error(`Server odpověděl kódem ${response.status}.`)
         const rawSubjects = (await response.json()) as Record<string, { kod?: unknown; nazev?: unknown }>
         const subjects = Object.entries(rawSubjects)
-          .filter(([, subject]) => typeof subject.kod === 'string' && typeof subject.nazev === 'string')
+          .filter(([, subject]) => typeof subject?.kod === 'string' && typeof subject?.nazev === 'string')
           .map(([code, subject]) => ({
             code,
             instituteCode: subject.kod as string,
@@ -335,11 +341,14 @@ function App() {
             >
               {activeWeek.days.map((day) => (
                 <DayColumn
-                  key={day.date || day.dayName}
+                  key={day.dayName}
                   day={day}
                   isToday={
-                    day.date === currentPosition?.dayDate &&
-                    activeWeek.id === currentPosition.weekId
+                    Boolean(
+                      currentPosition?.dayDate &&
+                      day.date === currentPosition.dayDate &&
+                      activeWeek.id === currentPosition.weekId
+                    )
                   }
                 />
               ))}

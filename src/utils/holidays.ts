@@ -28,11 +28,14 @@ function dateMatches(date: Date, day: number, month: number) {
 }
 
 export function getPublicHolidayName(dateText: string): string | null {
+export function getPublicHolidayName(dateText?: string | null): string | null {
+  if (!dateText || typeof dateText !== 'string') return null
   const match = dateText.match(/^(\d{1,2})\.(\d{1,2})\.?$/)
   if (!match) return null
 
   const day = Number(match[1])
   const month = Number(match[2])
+  if (!day || !month) return null
   const currentYear = new Date().getFullYear()
 
   for (const year of [currentYear - 1, currentYear, currentYear + 1]) {

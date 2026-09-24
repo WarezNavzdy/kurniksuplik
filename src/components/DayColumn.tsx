@@ -7,13 +7,15 @@ const DAY_START = 7 * 60
 const DAY_END = 19 * 60
 const MINUTE_HEIGHT = 1.75
 
-function toMinutes(time: string) {
-  const [hours, minutes] = time.split(':').map(Number)
+function toMinutes(time?: string) {
+  if (!time || typeof time !== 'string') return 0
+  const [hours = 0, minutes = 0] = time.split(':').map(Number)
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return 0
   return hours * 60 + minutes
 }
 
 export function DayColumn({ day, isToday = false }: { day: ScheduleDay; isToday?: boolean }) {
-  const publicHoliday = !day.subjects.length ? getPublicHolidayName(day.date) : null
+  const publicHoliday = !day.subjects?.length ? getPublicHolidayName(day.date) : null
   const freeDayLabel = publicHoliday
     ? `Svátek: ${publicHoliday}`
     : 'Volný den'
@@ -115,7 +117,7 @@ export function DayColumn({ day, isToday = false }: { day: ScheduleDay; isToday?
         )}
 
         {/* Subjects */}
-        {day.subjects.map((subject) => {
+        {(day.subjects || []).map((subject, sIdx) => {
           const top = Math.max(0, toMinutes(subject.startTime) - DAY_START) * MINUTE_HEIGHT
           const duration = Math.max(30, toMinutes(subject.endTime) - toMinutes(subject.startTime))
           const cardHeight = duration * MINUTE_HEIGHT
@@ -126,7 +128,7 @@ export function DayColumn({ day, isToday = false }: { day: ScheduleDay; isToday?
 
           return (
             <div
-              key={subject.id}
+              key={`${subject.id || sIdx}-${subject.startTime}-${subject.endTime}`}
               className="absolute left-8 right-1"
               style={{ top: `${top}px`, height: `${cardHeight}px` }}
             >
@@ -136,7 +138,7 @@ export function DayColumn({ day, isToday = false }: { day: ScheduleDay; isToday?
         })}
 
         {/* Free day / Holiday banner */}
-        {!day.subjects.length && (
+        {(!day.subjects || day.subjects.length === 0) && (
           <div className="absolute inset-x-3 top-8 flex justify-center">
             <div
               className={`rounded-xl border px-3 py-2 text-center text-xs font-semibold ${
