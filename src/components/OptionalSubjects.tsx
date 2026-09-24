@@ -14,8 +14,6 @@ interface OptionalSubjectsProps {
   error: string | null
   scheduleErrors: Record<string, string>
   onToggle: (code: string, selected: boolean) => void
-  isOpen?: boolean
-  onToggleOpen?: () => void
 }
 
 export function OptionalSubjects({
@@ -70,10 +68,8 @@ export function OptionalSubjects({
             </span>
           )}
         </div>
-
         <div className="flex items-center gap-2">
           {selectedCodes.length > 0 && (
-            <span className="hidden text-xs text-slate-400 sm:inline">vybráno {selectedCodes.length}</span>
             <span className="text-xs text-slate-400 hidden sm:inline">
               vybráno {selectedCodes.length}
             </span>
@@ -92,7 +88,6 @@ export function OptionalSubjects({
           {loading && (
             <p className="py-2 text-sm text-slate-400">Načítám seznam volitelných předmětů…</p>
           )}
-
           {error && (
             <p role="alert" className="py-2 text-sm text-red-400">
               {error}
@@ -115,7 +110,6 @@ export function OptionalSubjects({
                   <button
                     type="button"
                     onClick={handleRemoveUnavailable}
-                    className="shrink-0 rounded-lg bg-amber-400/20 px-2 py-1 font-bold text-amber-300 transition-colors hover:bg-amber-400/30"
                     className="shrink-0 rounded-lg bg-amber-400/20 px-2 py-1 font-bold text-amber-300 hover:bg-amber-400/30 transition-colors"
                   >
                     Odebrat nedostupné
@@ -151,19 +145,14 @@ export function OptionalSubjects({
               <div className="max-h-64 space-y-1 overflow-y-auto pr-1 schedule-scroll">
                 {filteredSubjects.map((subject) => {
                   const checked = selectedCodes.includes(subject.code)
-                  const hasScheduleError = Boolean(scheduleErrors[subject.code])
                   const hasScheduleError = scheduleErrors[subject.code]
 
                   return (
                     <label
                       key={subject.code}
-                      className={`flex cursor-pointer items-start gap-3 rounded-xl border p-2.5 transition-colors ${
                       className={`flex cursor-pointer items-start gap-3 rounded-xl p-2.5 transition-colors ${
                         checked
                           ? hasScheduleError
-                            ? 'border-amber-800/40 bg-amber-950/30'
-                            : 'border-teal-800/50 bg-teal-950/40'
-                          : 'border-transparent hover:bg-slate-800/70'
                             ? 'bg-amber-950/30 border border-amber-800/40'
                             : 'bg-teal-950/40 border border-teal-800/50'
                           : 'hover:bg-slate-800/70 border border-transparent'
@@ -179,7 +168,6 @@ export function OptionalSubjects({
                         {checked && (
                           <Check
                             size={12}
-                            className={hasScheduleError ? 'text-amber-400 stroke-[3]' : 'text-teal-400 stroke-[3]'}
                             className={
                               hasScheduleError
                                 ? 'text-amber-400 stroke-[3]'
@@ -192,19 +180,16 @@ export function OptionalSubjects({
                       <div className="min-w-0 flex-1 text-xs sm:text-sm">
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span className="font-bold text-white">{subject.code}</span>
-                          <span className="text-[11px] font-medium text-slate-400">({subject.instituteCode})</span>
                           <span className="text-[11px] font-medium text-slate-400">
                             ({subject.instituteCode})
                           </span>
                         </div>
-                        <span className="mt-0.5 block break-words text-slate-300">{subject.name}</span>
                         <span className="mt-0.5 block break-words text-slate-300">
                           {subject.name}
                         </span>
                         {hasScheduleError && (
                           <span className="mt-1 inline-flex items-center gap-1 rounded bg-amber-400/10 px-1.5 py-0.5 text-[11px] font-medium text-amber-300">
                             <AlertTriangle size={11} className="text-amber-400" />
-                            {scheduleErrors[subject.code]}
                             {hasScheduleError}
                           </span>
                         )}
@@ -222,7 +207,6 @@ export function OptionalSubjects({
 
               {/* Footer status */}
               <div className="mt-3 flex items-center justify-between border-t border-slate-800/80 pt-2.5 text-xs text-slate-400">
-                <span>Vybráno {selectedCodes.length} z {subjects.length} předmětů</span>
                 <span>
                   Vybráno {selectedCodes.length} z {subjects.length} předmětů
                 </span>
@@ -232,7 +216,6 @@ export function OptionalSubjects({
                     onClick={() => {
                       selectedCodes.forEach((code) => onToggle(code, false))
                     }}
-                    className="font-semibold text-slate-400 transition-colors hover:text-red-300"
                     className="font-semibold text-slate-400 hover:text-red-300 transition-colors"
                   >
                     Odznačit vše
