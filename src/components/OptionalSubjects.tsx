@@ -103,8 +103,8 @@ export function OptionalSubjects({
                     <AlertTriangle size={14} className="shrink-0 text-amber-400" />
                     <span>
                       {failingSelectedCodes.length}{' '}
-                      {failingSelectedCodes.length === 1 ? 'předmět nelze' : 'předměty nelze'} načíst
-                      (v SIS pro ně nejsou žádné rozvrhové hodiny).
+                      {failingSelectedCodes.length === 1 ? 'předmět nemá' : 'předměty nemají'} v SIS
+                      žádné rozvrhové hodiny.
                     </span>
                   </div>
                   <button
