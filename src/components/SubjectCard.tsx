@@ -1,26 +1,204 @@
-import { BookOpen, ExternalLink, MapPin, UserRound } from 'lucide-react'
+import { BookOpen, Clock, ExternalLink, MapPin, Sparkles, UserRound } from 'lucide-react'
 import type { Subject } from '../types/schedule'
 
 interface SubjectCardProps {
   subject: Subject
+  variant?: 'timeline' | 'agenda'
+  isCurrent?: boolean
 }
 
-export function SubjectCard({ subject }: SubjectCardProps) {
-  const hasLongName = subject.name.length > 40
+function getDurationMinutes(start: string, end: string): number {
+  const [sh, sm] = start.split(':').map(Number)
+  const [eh, em] = end.split(':').map(Number)
+  if (Number.isNaN(sh) || Number.isNaN(eh)) return 0
+  return (eh * 60 + em) - (sh * 60 + sm)
+}
 
-  return (
-    <article className="group relative h-full overflow-hidden rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-      <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-1 bg-amber-400" style={{ backgroundColor: subject.color || undefined }} />
-      <div className="h-full overflow-y-auto pr-1">
-        <div className={`flex items-start justify-between gap-2 ${hasLongName ? 'flex-col' : ''}`}>
-          <h3 className={`flex min-w-0 items-start gap-1.5 font-bold leading-tight text-slate-900 ${hasLongName ? 'text-xs' : 'text-sm'}`}><BookOpen size={13} className="mt-0.5 shrink-0 text-teal-700" />{subject.name}</h3>
-          <span className={`shrink-0 text-[10px] font-bold text-slate-500 ${hasLongName ? 'self-end' : ''}`}>{subject.startTime}–{subject.endTime}</span>
+export function SubjectCard({ subject, variant = 'timeline', isCurrent = false }: SubjectCardProps) {
+  const duration = getDurationMinutes(subject.startTime, subject.endTime)
+  const hasLongName = subject.name.length > 35
+  const accentColor = subject.color || (subject.source === 'elective' ? '#2dd4bf' : '#fbbf24')
+
+  if (variant === 'agenda') {
+    return (
+      <article
+        className={`group relative overflow-hidden rounded-2xl border transition-all duration-200 ${
+          isCurrent
+            ? 'border-amber-400/80 bg-slate-900 shadow-lg shadow-amber-500/10 ring-1 ring-amber-400/40'
+            : 'border-slate-800/90 bg-slate-900/95 hover:border-slate-700 hover:bg-slate-900'
+        }`}
+      >
+        {/* Left colored accent border */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-y-0 left-0 w-1.5"
+          style={{ backgroundColor: accentColor }}
+        />
+
+        <div className="p-4 pl-5">
+          {/* Top row: Times + Status & badges */}
+          <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-800 px-2.5 py-1 text-xs font-bold text-amber-300">
+                <Clock size={13} className="text-amber-400" />
+                {subject.startTime} – {subject.endTime}
+              </span>
+              {duration > 0 && (
+                <span className="text-[11px] font-medium text-slate-400">
+                  {duration} min
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              {isCurrent && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/20 px-2.5 py-0.5 text-[11px] font-bold text-amber-300 ring-1 ring-amber-400/30">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400" />
+                  Právě probíhá
+                </span>
+              )}
+              {subject.source === 'elective' && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-teal-950/80 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-teal-300 border border-teal-800/60">
+                  <Sparkles size={10} className="text-teal-400" />
+                  Volitelný
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Subject title */}
+          <h3 className="text-base font-bold leading-snug tracking-tight text-white group-hover:text-amber-200 transition-colors">
+            {subject.name}
+          </h3>
+
+          {/* Additional details: Teacher, Room, Course type */}
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-slate-800/80 pt-3 text-xs text-slate-300">
+            {subject.teacher && (
+              <div className="flex items-center gap-1.5 text-slate-300">
+                <UserRound size={14} className="shrink-0 text-slate-400" />
+                <span className="font-medium">{subject.teacher}</span>
+              </div>
+            )}
+
+            {(subject.room || subject.building) && (
+              <div className="flex items-center gap-1.5">
+                <MapPin size={14} className="shrink-0 text-teal-400" />
+                {subject.room && (
+                  <span className="font-semibold text-slate-200">{subject.room}</span>
+                )}
+                {subject.room && subject.building && <span className="text-slate-500">·</span>}
+                {subject.building && (
+                  subject.mapUrl ? (
+                    <a
+                      href={subject.mapUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 font-medium text-teal-400 underline decoration-teal-500/40 underline-offset-2 hover:text-teal-300 transition-colors"
+                      title={`Otevřít mapu budovy ${subject.building}`}
+                    >
+                      {subject.building}
+                      <ExternalLink size={11} />
+                    </a>
+                  ) : (
+                    <span className="text-slate-400">{subject.building}</span>
+                  )
+                )}
+              </div>
+            )}
+
+            {(subject.course || subject.note) && (
+              <div className="text-[11px] font-medium text-slate-400">
+                <span className="rounded bg-slate-800/70 px-1.5 py-0.5">
+                  {[subject.course, subject.note].filter(Boolean).join(' · ')}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
-        {subject.source === 'elective' && <span className="mt-1 inline-block rounded-full bg-teal-100 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-teal-800">Volitelný</span>}
-        <div className="mt-2 space-y-1 text-[11px] leading-tight text-slate-500">
-          {subject.teacher && <p className="flex min-w-0 items-start gap-1.5"><UserRound size={12} className="mt-0.5 shrink-0" /><span>{subject.teacher}</span></p>}
-          <p className="flex items-center gap-1.5"><MapPin size={12} className="shrink-0" />{subject.room || subject.building ? <>{subject.room && <span>{subject.room}</span>}{subject.room && subject.building && <span> · </span>}{subject.building && (subject.mapUrl ? <a href={subject.mapUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-semibold text-teal-700 underline decoration-teal-200 underline-offset-2 hover:text-teal-900" title={`Otevřít mapu budovy ${subject.building}`}>{subject.building}<ExternalLink size={10} /></a> : <span>{subject.building}</span>)}</> : 'Místnost neuvedena'}</p>
-          {(subject.course || subject.note) && <p className="pt-0.5 text-[10px] italic text-slate-400">{[subject.course, subject.note].filter(Boolean).join(' · ')}</p>}
+      </article>
+    )
+  }
+
+  // Timeline variant (used in the 5-column hour grid)
+  return (
+    <article
+      className={`group relative h-full overflow-hidden rounded-xl border p-2 transition-all duration-150 ${
+        isCurrent
+          ? 'border-amber-400/90 bg-slate-900 shadow-md ring-1 ring-amber-400/40'
+          : 'border-slate-800/90 bg-slate-900/95 hover:border-amber-400/50 hover:bg-slate-850'
+      }`}
+    >
+      {/* Accent left indicator */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-y-0 left-0 z-10 w-1"
+        style={{ backgroundColor: accentColor }}
+      />
+
+      <div className="h-full overflow-y-auto pr-0.5 pl-1.5 text-slate-200">
+        <div className={`flex items-start justify-between gap-1.5 ${hasLongName ? 'flex-col' : ''}`}>
+          <h3
+            className={`flex min-w-0 items-start gap-1 font-bold leading-tight text-white group-hover:text-amber-200 ${
+              hasLongName ? 'text-[11px]' : 'text-xs'
+            }`}
+          >
+            <BookOpen size={12} className="mt-0.5 shrink-0 text-amber-400" />
+            <span className="line-clamp-2">{subject.name}</span>
+          </h3>
+          <span
+            className={`shrink-0 rounded bg-slate-800 px-1 py-0.5 text-[9px] font-bold text-amber-300 ${
+              hasLongName ? 'self-end' : ''
+            }`}
+          >
+            {subject.startTime}–{subject.endTime}
+          </span>
+        </div>
+
+        {subject.source === 'elective' && (
+          <span className="mt-1 inline-block rounded bg-teal-950 px-1 py-0.2 text-[8px] font-extrabold uppercase tracking-wide text-teal-300 border border-teal-800/40">
+            Volitelný
+          </span>
+        )}
+
+        <div className="mt-1.5 space-y-0.5 text-[10px] leading-tight text-slate-400">
+          {subject.teacher && (
+            <p className="flex min-w-0 items-center gap-1 text-slate-300">
+              <UserRound size={10} className="shrink-0 text-slate-400" />
+              <span className="truncate">{subject.teacher}</span>
+            </p>
+          )}
+          <p className="flex items-center gap-1">
+            <MapPin size={10} className="shrink-0 text-teal-400" />
+            {subject.room || subject.building ? (
+              <>
+                {subject.room && <span className="font-medium text-slate-200">{subject.room}</span>}
+                {subject.room && subject.building && <span>·</span>}
+                {subject.building && (
+                  subject.mapUrl ? (
+                    <a
+                      href={subject.mapUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-0.5 font-medium text-teal-400 underline decoration-teal-500/40 underline-offset-1 hover:text-teal-300"
+                      title={`Otevřít mapu budovy ${subject.building}`}
+                    >
+                      {subject.building}
+                      <ExternalLink size={8} />
+                    </a>
+                  ) : (
+                    <span>{subject.building}</span>
+                  )
+                )}
+              </>
+            ) : (
+              'Místnost neuvedena'
+            )}
+          </p>
+          {(subject.course || subject.note) && (
+            <p className="truncate text-[9px] text-slate-400">
+              {[subject.course, subject.note].filter(Boolean).join(' · ')}
+            </p>
+          )}
         </div>
       </div>
     </article>

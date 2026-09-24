@@ -1,5 +1,6 @@
-import { CalendarDays } from 'lucide-react'
+import { CalendarDays, Sparkles } from 'lucide-react'
 import type { ScheduleDay } from '../types/schedule'
+import { getPublicHolidayName } from '../utils/holidays'
 import { SubjectCard } from './SubjectCard'
 
 const DAY_START = 7 * 60
@@ -11,116 +12,140 @@ function toMinutes(time: string) {
   return hours * 60 + minutes
 }
 
-function addDays(date: Date, days: number) {
-  const next = new Date(date)
-  next.setDate(next.getDate() + days)
-  return next
-}
-
-function getEasterSunday(year: number) {
-  const a = year % 19
-  const b = Math.floor(year / 100)
-  const c = year % 100
-  const d = Math.floor(b / 4)
-  const e = b % 4
-  const f = Math.floor((b + 8) / 25)
-  const g = Math.floor((b - f + 1) / 3)
-  const h = (19 * a + b - d - g + 15) % 30
-  const i = Math.floor(c / 4)
-  const k = c % 4
-  const l = (32 + 2 * e + 2 * i - h - k) % 7
-  const m = Math.floor((a + 11 * h + 22 * l) / 451)
-  const month = Math.floor((h + l - 7 * m + 114) / 31)
-  const day = ((h + l - 7 * m + 114) % 31) + 1
-
-  return new Date(year, month - 1, day)
-}
-
-function dateMatches(date: Date, day: number, month: number) {
-  return date.getDate() === day && date.getMonth() + 1 === month
-}
-
-function getPublicHolidayName(dateText: string) {
-  const match = dateText.match(/^(\d{1,2})\.(\d{1,2})\.?$/)
-  if (!match) return null
-
-  const day = Number(match[1])
-  const month = Number(match[2])
-  const currentYear = new Date().getFullYear()
-
-  for (const year of [currentYear - 1, currentYear, currentYear + 1]) {
-    const fixedHolidays: Record<string, string> = {
-      '1.1': 'Nový rok',
-      '1.5': 'Svátek práce - jako student toto slovo neznám',
-      '8.5': 'Den vítězství - ou jé',
-      '5.7': 'Den slovanských věrozvěstů Cyrila a Metoděje',
-      '6.7': 'Den upálení mistra Jana Husa - Honzo, upaluj',
-      '28.9': 'Den české státnosti - zabili Vaška',
-      '28.10': 'Den vzniku samostatného československého státu - tatíček Masařík',
-      '17.11': 'Den boje za svobodu a demokracii - slova, závist, zášť',
-      '24.12': 'Štědrý den - Purpura na plotně voníííí',
-      '25.12': '1. svátek vánoční',
-      '26.12': '2. svátek vánoční',
-    }
-
-    const fixedKey = `${day}.${month}`
-    if (fixedHolidays[fixedKey]) return fixedHolidays[fixedKey]
-
-    const easterSunday = getEasterSunday(year)
-    const holidays = [
-      { date: addDays(easterSunday, -2), label: 'Velký pátek' },
-      { date: addDays(easterSunday, 1), label: 'Velikonoční pondělí' },
-      { date: addDays(easterSunday, 39), label: 'Nanebevstoupení Páně' },
-      { date: addDays(easterSunday, 50), label: 'Svatodušní pondělí' },
-    ]
-
-    const holiday = holidays.find(({ date }) => dateMatches(date, day, month))
-    if (holiday) return holiday.label
-  }
-
-  return null
-}
-
 export function DayColumn({ day, isToday = false }: { day: ScheduleDay; isToday?: boolean }) {
   const publicHoliday = !day.subjects.length ? getPublicHolidayName(day.date) : null
   const freeDayLabel = publicHoliday
-    ? `Státní svátek — ${publicHoliday}${day.date ? ` (${day.date})` : ''}`
-    : day.date
-      ? `Volný den — ${day.date}`
-      : 'Volný den'
-  const freeDayClasses = publicHoliday
-    ? 'border-amber-300 bg-amber-100 text-amber-900 shadow-sm shadow-amber-200/70'
-    : 'border-slate-300 bg-slate-200 text-slate-600 shadow-sm shadow-slate-200/50'
-  const freeDayTextClasses = publicHoliday ? 'text-[11px] leading-snug' : 'text-[11px] leading-snug'
+    ? `Svátek: ${publicHoliday}`
+    : 'Volný den'
+
+  const now = new Date()
+  const currentMinutes = now.getHours() * 60 + now.getMinutes()
+  const isWithinDayHours = isToday && currentMinutes >= DAY_START && currentMinutes <= DAY_END
+  const currentTimeTop = isWithinDayHours ? (currentMinutes - DAY_START) * MINUTE_HEIGHT : null
 
   return (
-    <section className={`min-w-0 flex-[0_0_calc(100vw-3.5rem)] snap-start rounded-2xl border p-1 sm:flex-[0_0_320px] lg:flex-auto ${isToday ? 'border-amber-400 bg-amber-50 shadow-lg shadow-amber-950/10' : 'border-slate-200 bg-slate-100/90'}`}>
-      <header className="mb-3 flex items-center justify-between border-b border-slate-200 px-2 pb-3">
-        <div><h2 className="font-bold text-slate-900">{day.dayName}{isToday && <span className="ml-2 rounded-full bg-amber-400 px-2 py-1 text-[10px] uppercase tracking-wide text-slate-950">Dnes</span>}</h2><p className="text-xs text-slate-500">{day.date}</p></div>
-        <CalendarDays size={18} className="text-teal-700" />
-      </header>
-      <div className="relative" style={{ height: `${(DAY_END - DAY_START) * MINUTE_HEIGHT}px` }}>
-        <div className="pointer-events-none absolute inset-0 ml-4 border-l border-slate-200" />
-        {Array.from({ length: 49 }, (_, index) => (
-          <div key={index} className="pointer-events-none absolute inset-x-0" style={{ top: `${index * 15 * MINUTE_HEIGHT}px` }}>
-            {index < 48 && index % 4 === 0 && <span className="absolute left-0 -translate-y-1 text-[9px] font-semibold leading-none text-slate-400">{7 + index / 4}</span>}
-            {index < 48 && <span className={`absolute left-4 right-0 border-t ${index % 4 === 0 ? 'border-slate-200/90' : 'border-slate-200/45'}`} />}
+    <section
+      id={isToday ? 'today-column' : undefined}
+      className={`min-w-0 flex-[0_0_82vw] snap-center sm:snap-start rounded-2xl transition-all duration-200 sm:flex-[0_0_310px] lg:flex-1 ${
+        isToday
+          ? 'border-2 border-amber-400 bg-slate-900/95 shadow-xl shadow-amber-500/10 ring-2 ring-amber-400/20'
+          : 'border border-slate-800/80 bg-slate-900/60 hover:border-slate-700/80'
+      }`}
+    >
+      {/* Sticky Day Column Header */}
+      <header
+        className={`sticky top-0 z-20 flex items-center justify-between rounded-t-2xl border-b px-3.5 py-3 backdrop-blur-md transition-colors ${
+          isToday
+            ? 'border-amber-400/60 bg-slate-900/95 shadow-sm'
+            : 'border-slate-800/90 bg-slate-900/90'
+        }`}
+      >
+        <div>
+          <div className="flex items-center gap-2">
+            <h2
+              className={`font-black text-base sm:text-lg ${
+                isToday ? 'text-amber-300' : 'text-white'
+              }`}
+            >
+              {day.dayName}
+            </h2>
+            {isToday && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-400 px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wider text-slate-950 shadow-md shadow-amber-400/30">
+                <Sparkles size={11} className="text-slate-950" />
+                Dnes
+              </span>
+            )}
           </div>
-        ))}
+          <p className="text-xs text-slate-400 font-semibold">{day.date || '—'}</p>
+        </div>
+
+        <div
+          className={`flex h-8 w-8 items-center justify-center rounded-xl font-bold ${
+            isToday
+              ? 'bg-amber-400 text-slate-950 shadow-sm shadow-amber-400/30'
+              : 'bg-slate-800/80 text-slate-400'
+          }`}
+        >
+          <CalendarDays size={16} />
+        </div>
+      </header>
+
+      {/* Timeline Body */}
+      <div
+        className="relative px-1"
+        style={{ height: `${(DAY_END - DAY_START) * MINUTE_HEIGHT}px` }}
+      >
+        {/* Left vertical border for time markings */}
+        <div className="pointer-events-none absolute inset-0 ml-7 border-l border-slate-800/80" />
+
+        {/* 15-minute and 1-hour grid lines */}
+        {Array.from({ length: 49 }, (_, index) => {
+          const isHour = index % 4 === 0
+          return (
+            <div
+              key={index}
+              className="pointer-events-none absolute inset-x-0"
+              style={{ top: `${index * 15 * MINUTE_HEIGHT}px` }}
+            >
+              {index < 48 && isHour && (
+                <span className="absolute left-0.5 -translate-y-2 text-[10px] font-bold leading-none text-slate-400 select-none">
+                  {7 + index / 4}:00
+                </span>
+              )}
+              {index < 48 && (
+                <span
+                  className={`absolute left-7 right-0 border-t ${
+                    isHour ? 'border-slate-800' : 'border-slate-800/30'
+                  }`}
+                />
+              )}
+            </div>
+          )
+        })}
+
+        {/* Live current time indicator line for today */}
+        {currentTimeTop !== null && (
+          <div
+            className="pointer-events-none absolute left-0 right-0 z-20 flex items-center"
+            style={{ top: `${currentTimeTop}px` }}
+          >
+            <div className="h-2.5 w-2.5 rounded-full bg-amber-400 shadow-md shadow-amber-400 ring-2 ring-amber-400/60" />
+            <div className="h-[2px] flex-1 bg-amber-400 shadow-md shadow-amber-400" />
+          </div>
+        )}
+
+        {/* Subjects */}
         {day.subjects.map((subject) => {
           const top = Math.max(0, toMinutes(subject.startTime) - DAY_START) * MINUTE_HEIGHT
           const duration = Math.max(30, toMinutes(subject.endTime) - toMinutes(subject.startTime))
-
           const cardHeight = duration * MINUTE_HEIGHT
 
-          return <div key={subject.id} className="absolute left-4 right-0" style={{ top: `${top}px`, height: `${cardHeight}px` }}><SubjectCard subject={subject} /></div>
+          const startM = toMinutes(subject.startTime)
+          const endM = toMinutes(subject.endTime)
+          const isCurrent = isToday && currentMinutes >= startM && currentMinutes < endM
+
+          return (
+            <div
+              key={subject.id}
+              className="absolute left-8 right-1"
+              style={{ top: `${top}px`, height: `${cardHeight}px` }}
+            >
+              <SubjectCard subject={subject} variant="timeline" isCurrent={isCurrent} />
+            </div>
+          )
         })}
+
+        {/* Free day / Holiday banner */}
         {!day.subjects.length && (
-          <div className="absolute inset-x-2 top-6 flex justify-center">
-            <div className={`max-w-[calc(100%-1rem)] rounded-full border px-2.5 py-1 text-center font-bold uppercase tracking-[0.04em] ${freeDayClasses} ${freeDayTextClasses}`}>
-              <div className="whitespace-normal break-words">
-                {freeDayLabel}
-              </div>
+          <div className="absolute inset-x-3 top-8 flex justify-center">
+            <div
+              className={`rounded-xl border px-3 py-2 text-center text-xs font-semibold ${
+                publicHoliday
+                  ? 'border-amber-400/40 bg-amber-400/10 text-amber-200 shadow-md shadow-amber-950/20'
+                  : 'border-slate-800 bg-slate-800/60 text-slate-400'
+              }`}
+            >
+              {freeDayLabel}
             </div>
           </div>
         )}
