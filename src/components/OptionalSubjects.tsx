@@ -104,7 +104,7 @@ export function OptionalSubjects({
                     <span>
                       {failingSelectedCodes.length}{' '}
                       {failingSelectedCodes.length === 1 ? 'předmět nelze' : 'předměty nelze'} načíst
-                      (SIS vyžaduje přihlášení).
+                      (v SIS pro ně nejsou žádné rozvrhové hodiny).
                     </span>
                   </div>
                   <button
