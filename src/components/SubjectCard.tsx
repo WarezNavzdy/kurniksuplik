@@ -7,20 +7,19 @@ interface SubjectCardProps {
   isCurrent?: boolean
 }
 
-function getDurationMinutes(start: string, end: string): number {
-  const [sh, sm] = start.split(':').map(Number)
-  const [eh, em] = end.split(':').map(Number)
 function getDurationMinutes(start?: string, end?: string): number {
   if (!start || !end) return 0
+
   const [sh = 0, sm = 0] = start.split(':').map(Number)
   const [eh = 0, em = 0] = end.split(':').map(Number)
+
   if (Number.isNaN(sh) || Number.isNaN(eh)) return 0
-  return (eh * 60 + em) - (sh * 60 + sm)
+
+  return eh * 60 + em - (sh * 60 + sm)
 }
 
 export function SubjectCard({ subject, variant = 'timeline', isCurrent = false }: SubjectCardProps) {
   const duration = getDurationMinutes(subject.startTime, subject.endTime)
-  const hasLongName = subject.name.length > 35
   const hasLongName = (subject.name || '').length > 35
   const accentColor = subject.color || (subject.source === 'elective' ? '#2dd4bf' : '#fbbf24')
 
@@ -33,7 +32,6 @@ export function SubjectCard({ subject, variant = 'timeline', isCurrent = false }
             : 'border-slate-800/90 bg-slate-900/95 hover:border-slate-700 hover:bg-slate-900'
         }`}
       >
-        {/* Left colored accent border */}
         <div
           aria-hidden="true"
           className="absolute inset-y-0 left-0 w-1.5"
@@ -41,19 +39,13 @@ export function SubjectCard({ subject, variant = 'timeline', isCurrent = false }
         />
 
         <div className="p-4 pl-5">
-          {/* Top row: Times + Status & badges */}
           <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-800 px-2.5 py-1 text-xs font-bold text-amber-300">
                 <Clock size={13} className="text-amber-400" />
-                {subject.startTime} – {subject.endTime}
                 {subject.startTime || '—'} – {subject.endTime || '—'}
               </span>
-              {duration > 0 && (
-                <span className="text-[11px] font-medium text-slate-400">
-                  {duration} min
-                </span>
-              )}
+              {duration > 0 && <span className="text-[11px] font-medium text-slate-400">{duration} min</span>}
             </div>
 
             <div className="flex items-center gap-1.5">
@@ -63,8 +55,9 @@ export function SubjectCard({ subject, variant = 'timeline', isCurrent = false }
                   Právě probíhá
                 </span>
               )}
+
               {subject.source === 'elective' && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-teal-950/80 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-teal-300 border border-teal-800/60">
+                <span className="inline-flex items-center gap-1 rounded-full border border-teal-800/60 bg-teal-950/80 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-teal-300">
                   <Sparkles size={10} className="text-teal-400" />
                   Volitelný
                 </span>
@@ -72,13 +65,10 @@ export function SubjectCard({ subject, variant = 'timeline', isCurrent = false }
             </div>
           </div>
 
-          {/* Subject title */}
-          <h3 className="text-base font-bold leading-snug tracking-tight text-white group-hover:text-amber-200 transition-colors">
-            {subject.name}
+          <h3 className="text-base font-bold leading-snug tracking-tight text-white transition-colors group-hover:text-amber-200">
             {subject.name || 'Předmět bez názvu'}
           </h3>
 
-          {/* Additional details: Teacher, Room, Course type */}
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-slate-800/80 pt-3 text-xs text-slate-300">
             {subject.teacher && (
               <div className="flex items-center gap-1.5 text-slate-300">
@@ -90,9 +80,7 @@ export function SubjectCard({ subject, variant = 'timeline', isCurrent = false }
             {(subject.room || subject.building) && (
               <div className="flex items-center gap-1.5">
                 <MapPin size={14} className="shrink-0 text-teal-400" />
-                {subject.room && (
-                  <span className="font-semibold text-slate-200">{subject.room}</span>
-                )}
+                {subject.room && <span className="font-semibold text-slate-200">{subject.room}</span>}
                 {subject.room && subject.building && <span className="text-slate-500">·</span>}
                 {subject.building && (
                   subject.mapUrl ? (
@@ -100,7 +88,7 @@ export function SubjectCard({ subject, variant = 'timeline', isCurrent = false }
                       href={subject.mapUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-1 font-medium text-teal-400 underline decoration-teal-500/40 underline-offset-2 hover:text-teal-300 transition-colors"
+                      className="inline-flex items-center gap-1 font-medium text-teal-400 underline decoration-teal-500/40 underline-offset-2 transition-colors hover:text-teal-300"
                       title={`Otevřít mapu budovy ${subject.building}`}
                     >
                       {subject.building}
@@ -126,7 +114,6 @@ export function SubjectCard({ subject, variant = 'timeline', isCurrent = false }
     )
   }
 
-  // Timeline variant (used in the 5-column hour grid)
   return (
     <article
       className={`group relative h-full overflow-hidden rounded-xl border p-2 transition-all duration-150 ${
@@ -135,14 +122,13 @@ export function SubjectCard({ subject, variant = 'timeline', isCurrent = false }
           : 'border-slate-800/90 bg-slate-900/95 hover:border-amber-400/50 hover:bg-slate-850'
       }`}
     >
-      {/* Accent left indicator */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-y-0 left-0 z-10 w-1"
         style={{ backgroundColor: accentColor }}
       />
 
-      <div className="h-full overflow-y-auto pr-0.5 pl-1.5 text-slate-200">
+      <div className="h-full overflow-y-auto pl-1.5 pr-0.5 text-slate-200">
         <div className={`flex items-start justify-between gap-1.5 ${hasLongName ? 'flex-col' : ''}`}>
           <h3
             className={`flex min-w-0 items-start gap-1 font-bold leading-tight text-white group-hover:text-amber-200 ${
@@ -150,7 +136,6 @@ export function SubjectCard({ subject, variant = 'timeline', isCurrent = false }
             }`}
           >
             <BookOpen size={12} className="mt-0.5 shrink-0 text-amber-400" />
-            <span className="line-clamp-2">{subject.name}</span>
             <span className="line-clamp-2">{subject.name || 'Předmět'}</span>
           </h3>
           <span
@@ -158,13 +143,12 @@ export function SubjectCard({ subject, variant = 'timeline', isCurrent = false }
               hasLongName ? 'self-end' : ''
             }`}
           >
-            {subject.startTime}–{subject.endTime}
             {subject.startTime || '—'}–{subject.endTime || '—'}
           </span>
         </div>
 
         {subject.source === 'elective' && (
-          <span className="mt-1 inline-block rounded bg-teal-950 px-1 py-0.2 text-[8px] font-extrabold uppercase tracking-wide text-teal-300 border border-teal-800/40">
+          <span className="mt-1 inline-block rounded border border-teal-800/40 bg-teal-950 px-1 py-0.2 text-[8px] font-extrabold uppercase tracking-wide text-teal-300">
             Volitelný
           </span>
         )}
