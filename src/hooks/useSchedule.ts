@@ -156,9 +156,10 @@ function normalizeSchedule(
     const monday = parsedDate ? new Date(parsedDate) : null
     if (monday) monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7))
     if (day.week !== null && day.week !== undefined) currentWeekKey = String(day.week)
-    if (!currentWeekKey && monday)
-      currentWeekKey = `${monday.getFullYear()}-${monday.getMonth() + 1}-${monday.getDate()}`
-    const weekKey = currentWeekKey || 'unknown'
+    const dateWeekKey = monday
+      ? `${monday.getFullYear()}-${monday.getMonth() + 1}-${monday.getDate()}`
+      : null
+    const weekKey = dateWeekKey || currentWeekKey || 'unknown'
     const days = groupedDays.get(weekKey) || []
     days.push(day)
     groupedDays.set(weekKey, days)
