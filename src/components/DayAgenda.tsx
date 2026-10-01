@@ -1,6 +1,7 @@
 import { CalendarDays, Coffee, Sparkles } from 'lucide-react'
 import type { ScheduleDay } from '../types/schedule'
 import { getPublicHolidayName } from '../utils/holidays'
+import { hasScheduleConflict } from '../utils/schedule'
 import { SubjectCard } from './SubjectCard'
 
 interface DayAgendaProps {
@@ -85,6 +86,7 @@ export function DayAgenda({ day, isToday = false }: DayAgendaProps) {
                   subject={subject}
                   variant="agenda"
                   isCurrent={isCurrent}
+                  hasConflict={hasScheduleConflict(subject, sortedSubjects)}
                 />
               </div>
             )

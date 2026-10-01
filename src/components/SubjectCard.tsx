@@ -5,6 +5,7 @@ interface SubjectCardProps {
   subject: Subject
   variant?: 'timeline' | 'agenda'
   isCurrent?: boolean
+  hasConflict?: boolean
 }
 
 function getDurationMinutes(start?: string, end?: string): number {
@@ -15,16 +16,18 @@ function getDurationMinutes(start?: string, end?: string): number {
   return (eh * 60 + em) - (sh * 60 + sm)
 }
 
-export function SubjectCard({ subject, variant = 'timeline', isCurrent = false }: SubjectCardProps) {
+export function SubjectCard({ subject, variant = 'timeline', isCurrent = false, hasConflict = false }: SubjectCardProps) {
   const duration = getDurationMinutes(subject.startTime, subject.endTime)
   const hasLongName = (subject.name || '').length > 35
-  const accentColor = subject.color || (subject.source === 'elective' ? '#2dd4bf' : '#fbbf24')
+  const accentColor = hasConflict ? '#ef4444' : subject.color || (subject.source === 'elective' ? '#2dd4bf' : '#fbbf24')
 
   if (variant === 'agenda') {
     return (
       <article
         className={`group relative overflow-hidden rounded-2xl border transition-all duration-200 ${
-          isCurrent
+          hasConflict
+            ? 'border-red-500/90 bg-red-950/50 shadow-lg shadow-red-950/30 ring-1 ring-red-500/50'
+            : isCurrent
             ? 'border-amber-400/80 bg-slate-900 shadow-lg shadow-amber-500/10 ring-1 ring-amber-400/40'
             : 'border-slate-800/90 bg-slate-900/95 hover:border-slate-700 hover:bg-slate-900'
         }`}
@@ -40,8 +43,8 @@ export function SubjectCard({ subject, variant = 'timeline', isCurrent = false }
           {/* Top row: Times + Status & badges */}
           <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-800 px-2.5 py-1 text-xs font-bold text-amber-300">
-                <Clock size={13} className="text-amber-400" />
+              <span className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-bold ${hasConflict ? 'bg-red-950 text-red-200' : 'bg-slate-800 text-amber-300'}`}>
+                <Clock size={13} className={hasConflict ? 'text-red-400' : 'text-amber-400'} />
                 {subject.startTime || '—'} – {subject.endTime || '—'}
               </span>
               {duration > 0 && (
@@ -68,7 +71,7 @@ export function SubjectCard({ subject, variant = 'timeline', isCurrent = false }
           </div>
 
           {/* Subject title */}
-          <h3 className="text-base font-bold leading-snug tracking-tight text-white group-hover:text-amber-200 transition-colors">
+          <h3 className={`text-base font-bold leading-snug tracking-tight text-white transition-colors ${hasConflict ? 'group-hover:text-red-200' : 'group-hover:text-amber-200'}`}>
             {subject.name || 'Předmět bez názvu'}
           </h3>
 
@@ -124,7 +127,9 @@ export function SubjectCard({ subject, variant = 'timeline', isCurrent = false }
   return (
     <article
       className={`group relative h-full overflow-hidden rounded-xl border p-2 transition-all duration-150 ${
-        isCurrent
+        hasConflict
+          ? 'border-red-500/90 bg-red-950/60 shadow-md ring-1 ring-red-500/50'
+          : isCurrent
           ? 'border-amber-400/90 bg-slate-900 shadow-md ring-1 ring-amber-400/40'
           : 'border-slate-800/90 bg-slate-900/95 hover:border-amber-400/50 hover:bg-slate-850'
       }`}
@@ -143,11 +148,11 @@ export function SubjectCard({ subject, variant = 'timeline', isCurrent = false }
               hasLongName ? 'text-[11px]' : 'text-xs'
             }`}
           >
-            <BookOpen size={12} className="mt-0.5 shrink-0 text-amber-400" />
+            <BookOpen size={12} className={`mt-0.5 shrink-0 ${hasConflict ? 'text-red-400' : 'text-amber-400'}`} />
             <span className="line-clamp-2">{subject.name || 'Předmět'}</span>
           </h3>
           <span
-            className={`shrink-0 rounded bg-slate-800 px-1 py-0.5 text-[9px] font-bold text-amber-300 ${
+            className={`shrink-0 rounded px-1 py-0.5 text-[9px] font-bold ${hasConflict ? 'bg-red-950 text-red-200' : 'bg-slate-800 text-amber-300'} ${
               hasLongName ? 'self-end' : ''
             }`}
           >

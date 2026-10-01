@@ -1,6 +1,7 @@
 import { CalendarDays } from 'lucide-react'
 import type { ScheduleDay } from '../types/schedule'
 import { getPublicHolidayName } from '../utils/holidays'
+import { hasScheduleConflict } from '../utils/schedule'
 import { SubjectCard } from './SubjectCard'
 
 const DAY_START = 7 * 60
@@ -154,7 +155,12 @@ export function DayColumn({ day, isToday = false }: { day: ScheduleDay; isToday?
               className="absolute left-8 right-1"
               style={{ top: `${top}px`, height: `${cardHeight}px` }}
             >
-              <SubjectCard subject={subject} variant="timeline" isCurrent={isCurrent} />
+              <SubjectCard
+                subject={subject}
+                variant="timeline"
+                isCurrent={isCurrent}
+                hasConflict={hasScheduleConflict(subject, sortedSubjects)}
+              />
             </div>
           )
         })}
