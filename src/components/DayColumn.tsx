@@ -17,6 +17,9 @@ export function DayColumn({ day, isToday = false }: { day: ScheduleDay; isToday?
   const freeDayLabel = publicHoliday
     ? `Svátek: ${publicHoliday}`
     : 'Volný den'
+  const sortedSubjects = [...day.subjects].sort(
+    (first, second) => toMinutes(first.startTime) - toMinutes(second.startTime)
+  )
 
   const now = new Date()
   const currentMinutes = now.getHours() * 60 + now.getMinutes()
@@ -25,7 +28,8 @@ export function DayColumn({ day, isToday = false }: { day: ScheduleDay; isToday?
 
   return (
     <section
-      className={`min-w-0 flex-[0_0_calc(100vw-2.5rem)] snap-start rounded-2xl border transition-all duration-200 sm:flex-[0_0_300px] lg:flex-auto ${
+      id={isToday ? 'today-column' : undefined}
+      className={`min-w-0 flex-[0_0_100%] snap-start rounded-2xl border transition-all duration-200 sm:flex-[0_0_300px] lg:flex-auto ${
         isToday
           ? 'border-amber-400/80 bg-slate-900/95 shadow-lg shadow-amber-500/5 ring-1 ring-amber-400/30'
           : 'border-slate-800/80 bg-slate-900/60 hover:border-slate-700/80'
@@ -103,8 +107,39 @@ export function DayColumn({ day, isToday = false }: { day: ScheduleDay; isToday?
           </div>
         )}
 
+        {/* Transfer time between classes */}
+        {sortedSubjects.map((subject, index) => {
+          const previousSubject = sortedSubjects[index - 1]
+          if (!previousSubject) return null
+
+          const previousEnd = toMinutes(previousSubject.endTime)
+          const gapMinutes = toMinutes(subject.startTime) - previousEnd
+          if (gapMinutes <= 0) return null
+
+          const hours = Math.floor(gapMinutes / 60)
+          const remainingMinutes = gapMinutes % 60
+          const duration = hours
+            ? `${hours} h${remainingMinutes ? ` ${remainingMinutes} min` : ''}`
+            : `${gapMinutes} min`
+
+          return (
+            <div
+              key={`transfer-${previousSubject.id}-${subject.id}`}
+              className="pointer-events-none absolute left-8 right-1 z-10 flex items-center justify-center"
+              style={{
+                top: `${(previousEnd - DAY_START) * MINUTE_HEIGHT}px`,
+                height: `${gapMinutes * MINUTE_HEIGHT}px`,
+              }}
+            >
+              <span className="rounded-full border border-slate-800 bg-slate-950/90 px-2 py-0.5 text-[9px] font-semibold leading-none text-slate-400">
+                Přesun: {duration}
+              </span>
+            </div>
+          )
+        })}
+
         {/* Subjects */}
-        {day.subjects.map((subject) => {
+        {sortedSubjects.map((subject) => {
           const top = Math.max(0, toMinutes(subject.startTime) - DAY_START) * MINUTE_HEIGHT
           const duration = Math.max(30, toMinutes(subject.endTime) - toMinutes(subject.startTime))
           const cardHeight = duration * MINUTE_HEIGHT

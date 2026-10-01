@@ -58,18 +58,35 @@ export function DayAgenda({ day, isToday = false }: DayAgendaProps) {
       {/* Class List */}
       {sortedSubjects.length > 0 ? (
         <div className="space-y-3">
-          {sortedSubjects.map((subject) => {
+          {sortedSubjects.map((subject, index) => {
             const startM = toMinutes(subject.startTime)
             const endM = toMinutes(subject.endTime)
             const isCurrent = isToday && currentMinutes >= startM && currentMinutes < endM
+            const previousSubject = sortedSubjects[index - 1]
+            const breakMinutes = previousSubject
+              ? startM - toMinutes(previousSubject.endTime)
+              : 0
 
             return (
-              <SubjectCard
-                key={subject.id}
-                subject={subject}
-                variant="agenda"
-                isCurrent={isCurrent}
-              />
+              <div key={subject.id}>
+                {breakMinutes > 0 && (
+                  <div className="flex items-center gap-2 py-1.5 text-xs font-medium text-slate-400">
+                    <span className="h-px flex-1 bg-slate-800" />
+                    <span className="inline-flex shrink-0 items-center gap-1.5">
+                      <Coffee size={13} className="text-amber-400" />
+                      Přestávka {breakMinutes >= 60
+                        ? `${Math.floor(breakMinutes / 60)} h${breakMinutes % 60 ? ` ${breakMinutes % 60} min` : ''}`
+                        : `${breakMinutes} min`}
+                    </span>
+                    <span className="h-px flex-1 bg-slate-800" />
+                  </div>
+                )}
+                <SubjectCard
+                  subject={subject}
+                  variant="agenda"
+                  isCurrent={isCurrent}
+                />
+              </div>
             )
           })}
         </div>
