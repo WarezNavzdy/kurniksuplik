@@ -126,7 +126,7 @@ export function SubjectCard({ subject, variant = 'timeline', isCurrent = false, 
   // Timeline variant (used in the 5-column hour grid)
   return (
     <article
-      className={`group relative h-full overflow-hidden rounded-xl border p-2 transition-all duration-150 ${
+      className={`group relative h-full overflow-hidden rounded-xl border p-2.5 transition-all duration-150 ${
         hasConflict
           ? 'border-red-500/90 bg-red-950/60 shadow-md ring-1 ring-red-500/50'
           : isCurrent
@@ -142,38 +142,38 @@ export function SubjectCard({ subject, variant = 'timeline', isCurrent = false, 
       />
 
       <div className="h-full overflow-y-auto pr-0.5 pl-1.5 text-slate-200">
-        <div className={`flex items-start justify-between gap-1.5 ${hasLongName ? 'flex-col' : ''}`}>
+        <div className="flex flex-col items-start gap-1">
           <h3
             className={`flex min-w-0 items-start gap-1 font-bold leading-tight text-white group-hover:text-amber-200 ${
-              hasLongName ? 'text-[11px]' : 'text-xs'
+              hasLongName ? 'text-[11px]' : 'text-[12px] sm:text-xs'
             }`}
           >
             <BookOpen size={12} className={`mt-0.5 shrink-0 ${hasConflict ? 'text-red-400' : 'text-amber-400'}`} />
-            <span className="line-clamp-2">{subject.name || 'Předmět'}</span>
+            <span className="line-clamp-3 min-w-0 break-words">{subject.name || 'Předmět'}</span>
           </h3>
           <span
-            className={`shrink-0 rounded px-1 py-0.5 text-[9px] font-bold ${hasConflict ? 'bg-red-950 text-red-200' : 'bg-slate-800 text-amber-300'} ${
-              hasLongName ? 'self-end' : ''
-            }`}
+            className={`shrink-0 rounded px-1 py-0.5 text-[9px] font-bold ${hasConflict ? 'bg-red-950 text-red-200' : 'bg-slate-800 text-amber-300'}`}
           >
             {subject.startTime || '—'}–{subject.endTime || '—'}
           </span>
         </div>
 
-        {subject.source === 'elective' && (
-          <span className="mt-1 inline-block rounded bg-teal-950 px-1 py-0.2 text-[8px] font-extrabold uppercase tracking-wide text-teal-300 border border-teal-800/40">
-            Volitelný
-          </span>
-        )}
+        <div className="mt-1 flex flex-wrap items-center gap-1">
+          {subject.source === 'elective' && (
+            <span className="inline-block rounded bg-teal-950 px-1 py-0.2 text-[8px] font-extrabold uppercase tracking-wide text-teal-300 border border-teal-800/40">
+              Volitelný
+            </span>
+          )}
+        </div>
 
         <div className="mt-1.5 space-y-0.5 text-[10px] leading-tight text-slate-400">
           {subject.teacher && (
             <p className="flex min-w-0 items-center gap-1 text-slate-300">
               <UserRound size={10} className="shrink-0 text-slate-400" />
-              <span className="truncate">{subject.teacher}</span>
+              <span className="line-clamp-2 break-words">{subject.teacher}</span>
             </p>
           )}
-          <p className="flex items-center gap-1">
+          <p className="flex items-center gap-1 break-words">
             <MapPin size={10} className="shrink-0 text-teal-400" />
             {subject.room || subject.building ? (
               <>
@@ -201,7 +201,7 @@ export function SubjectCard({ subject, variant = 'timeline', isCurrent = false, 
             )}
           </p>
           {(subject.course || subject.note) && (
-            <p className="truncate text-[9px] text-slate-400">
+            <p className="line-clamp-2 break-words text-[9px] text-slate-400">
               {[subject.course, subject.note].filter(Boolean).join(' · ')}
             </p>
           )}

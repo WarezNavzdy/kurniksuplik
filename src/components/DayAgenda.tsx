@@ -95,9 +95,9 @@ export function DayAgenda({ day, isToday = false }: DayAgendaProps) {
       ) : (
         /* Empty / Holiday State */
         <div
-          className={`flex flex-col items-center justify-center rounded-2xl border p-8 text-center transition-all ${
+          className={`relative z-10 flex flex-col items-center justify-center rounded-2xl border p-8 text-center transition-all ${
             publicHoliday
-              ? 'border-amber-500/40 bg-gradient-to-b from-amber-500/10 to-slate-900 text-amber-200'
+              ? 'border-amber-500/40 bg-gradient-to-b from-amber-500/10 to-slate-900 text-amber-200 shadow-lg shadow-amber-950/20'
               : 'border-slate-800 bg-slate-900/60 text-slate-400'
           }`}
         >

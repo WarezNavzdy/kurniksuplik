@@ -13,6 +13,45 @@ function toMinutes(time: string) {
   return hours * 60 + minutes
 }
 
+function computeSubjectLayout(subjects: ScheduleDay['subjects']) {
+  const items = subjects.map((subject) => {
+    const start = toMinutes(subject.startTime)
+    const end = toMinutes(subject.endTime)
+    const overlapCount = subjects.filter((other) => {
+      if (other.id === subject.id) return false
+      const otherStart = toMinutes(other.startTime)
+      const otherEnd = toMinutes(other.endTime)
+      return otherStart !== null && otherEnd !== null && start !== null && end !== null && start < otherEnd && end > otherStart
+    }).length + 1
+
+    return { subject, start, end, overlapCount }
+  })
+
+  const laneEnds: number[] = []
+
+  return items.map((item) => {
+    const laneIndex = laneEnds.findIndex((end) => item.start !== null && item.start >= end)
+    if (laneIndex >= 0) {
+      laneEnds[laneIndex] = item.end ?? item.start ?? 0
+    } else {
+      laneEnds.push(item.end ?? item.start ?? 0)
+    }
+
+    const laneCount = Math.max(1, item.overlapCount)
+    const safeLaneCount = Math.min(3, laneCount)
+    const laneOffset = (laneIndex >= 0 ? laneIndex : laneEnds.length - 1) * (100 / safeLaneCount)
+    const laneWidth = Math.max(32, 100 / safeLaneCount - 4)
+
+    return {
+      ...item,
+      laneIndex: laneIndex >= 0 ? laneIndex : laneEnds.length - 1,
+      laneCount: safeLaneCount,
+      laneOffset,
+      laneWidth,
+    }
+  })
+}
+
 export function DayColumn({ day, isToday = false }: { day: ScheduleDay; isToday?: boolean }) {
   const publicHoliday = !day.subjects.length ? getPublicHolidayName(day.date) : null
   const freeDayLabel = publicHoliday
@@ -140,38 +179,45 @@ export function DayColumn({ day, isToday = false }: { day: ScheduleDay; isToday?
         })}
 
         {/* Subjects */}
-        {sortedSubjects.map((subject) => {
-          const top = Math.max(0, toMinutes(subject.startTime) - DAY_START) * MINUTE_HEIGHT
-          const duration = Math.max(30, toMinutes(subject.endTime) - toMinutes(subject.startTime))
+        {computeSubjectLayout(sortedSubjects).map(({ subject, laneIndex, laneCount, laneOffset, laneWidth, start, end }) => {
+          const top = Math.max(0, (start ?? 0) - DAY_START) * MINUTE_HEIGHT
+          const duration = Math.max(30, (end ?? start ?? 0) - (start ?? 0))
           const cardHeight = duration * MINUTE_HEIGHT
 
-          const startM = toMinutes(subject.startTime)
-          const endM = toMinutes(subject.endTime)
-          const isCurrent = isToday && currentMinutes >= startM && currentMinutes < endM
+          const isCurrent = isToday && currentMinutes >= (start ?? 0) && currentMinutes < (end ?? 0)
 
           return (
             <div
               key={subject.id}
               className="absolute left-8 right-1"
-              style={{ top: `${top}px`, height: `${cardHeight}px` }}
+              style={{
+                top: `${top}px`,
+                height: `${cardHeight}px`,
+                zIndex: 20 + laneIndex,
+              }}
             >
-              <SubjectCard
-                subject={subject}
-                variant="timeline"
-                isCurrent={isCurrent}
-                hasConflict={hasScheduleConflict(subject, sortedSubjects)}
-              />
+              <div
+                className="absolute inset-y-0"
+                style={{ left: `${laneOffset}%`, width: `${laneWidth}%` }}
+              >
+                <SubjectCard
+                  subject={subject}
+                  variant="timeline"
+                  isCurrent={isCurrent}
+                  hasConflict={hasScheduleConflict(subject, sortedSubjects)}
+                />
+              </div>
             </div>
           )
         })}
 
         {/* Free day / Holiday banner */}
         {!day.subjects.length && (
-          <div className="absolute inset-x-3 top-8 flex justify-center">
+          <div className="absolute inset-x-3 top-8 z-30 flex justify-center">
             <div
-              className={`rounded-xl border px-3 py-2 text-center text-xs font-semibold ${
+              className={`max-w-[220px] rounded-xl border px-3 py-2 text-center text-xs font-semibold shadow-lg shadow-slate-950/30 ${
                 publicHoliday
-                  ? 'border-amber-400/40 bg-amber-400/10 text-amber-200 shadow-md shadow-amber-950/20'
+                  ? 'border-amber-400/40 bg-amber-400/10 text-amber-200 shadow-amber-950/20'
                   : 'border-slate-800 bg-slate-800/60 text-slate-400'
               }`}
             >

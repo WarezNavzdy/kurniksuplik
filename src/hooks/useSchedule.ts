@@ -286,15 +286,13 @@ export function useSchedule(circle: number, electiveCodes: string[] = []) {
   const electiveKey = electiveCodes.join('|')
 
   useEffect(() => {
-    const controller = new AbortController()
-
     async function loadSchedule() {
       try {
         setLoading(true)
         setError(null)
         const [response, buildingResponse] = await Promise.all([
-          fetch(`${API_URL}?kruh=${circle}`, { signal: controller.signal }),
-          fetch(BUILDING_MAP_URL, { signal: controller.signal }),
+          fetch(`${API_URL}?kruh=${circle}`),
+          fetch(BUILDING_MAP_URL),
         ])
         if (!response.ok) throw new Error(`Server odpověděl kódem ${response.status}.`)
         if (!buildingResponse.ok)
@@ -311,7 +309,6 @@ export function useSchedule(circle: number, electiveCodes: string[] = []) {
         setBuildingLinks(buildingLinks)
         setBaseWeeks(normalizedWeeks)
       } catch (fetchError) {
-        if (fetchError instanceof DOMException && fetchError.name === 'AbortError') return
         setError(fetchError instanceof Error ? fetchError.message : 'Rozvrh se nepodařilo načíst.')
       } finally {
         setLoading(false)
@@ -319,7 +316,6 @@ export function useSchedule(circle: number, electiveCodes: string[] = []) {
     }
 
     void loadSchedule()
-    return () => controller.abort()
   }, [circle])
 
   useEffect(() => {

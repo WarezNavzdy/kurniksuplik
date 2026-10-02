@@ -141,11 +141,9 @@ function App() {
   }, [activeWeek?.id, isCurrentWeek, currentPosition?.dayDate])
 
   useEffect(() => {
-    const controller = new AbortController()
-
     async function loadOptionalSubjects() {
       try {
-        const response = await fetch(ELECTIVES_URL, { signal: controller.signal })
+        const response = await fetch(ELECTIVES_URL)
         if (!response.ok) throw new Error(`Server odpověděl kódem ${response.status}.`)
         const rawSubjects = (await response.json()) as Record<string, { kod?: unknown; nazev?: unknown }>
         const subjects = Object.entries(rawSubjects)
@@ -164,7 +162,6 @@ function App() {
           JSON.stringify(savedCodes)
         )}; max-age=31536000; path=/; SameSite=Lax`
       } catch (fetchError) {
-        if (fetchError instanceof DOMException && fetchError.name === 'AbortError') return
         setOptionalListError(
           fetchError instanceof Error ? fetchError.message : 'Seznam předmětů se nepodařilo načíst.'
         )
@@ -174,7 +171,6 @@ function App() {
     }
 
     void loadOptionalSubjects()
-    return () => controller.abort()
   }, [])
 
   function handleCircleChange(nextCircle: number) {
